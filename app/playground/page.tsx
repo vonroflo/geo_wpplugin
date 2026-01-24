@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 type EndpointCategory = {
     name: string;
@@ -304,6 +304,11 @@ export default function PlaygroundPage() {
     const [viewMode, setViewMode] = useState<"form" | "json">("form");
     const [jsonBody, setJsonBody] = useState("");
     const [copied, setCopied] = useState(false);
+    const [origin, setOrigin] = useState("");
+
+    useEffect(() => {
+        setOrigin(window.location.origin);
+    }, []);
 
     const category = ENDPOINT_CATEGORIES[selectedCategory];
     const endpoint = category.endpoints[selectedEndpoint];
@@ -421,7 +426,7 @@ export default function PlaygroundPage() {
 
     const generateCurl = useCallback(() => {
         const url = buildUrl();
-        const fullUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${url}`;
+        const fullUrl = `${origin}${url}`;
 
         if (endpoint.method === "GET") {
             return `curl "${fullUrl}"`;
@@ -429,7 +434,7 @@ export default function PlaygroundPage() {
 
         const body = buildRequestBody();
         return `curl -X ${endpoint.method} "${fullUrl}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
-    }, [endpoint, buildUrl, buildRequestBody]);
+    }, [endpoint, buildUrl, buildRequestBody, origin]);
 
     const handleSubmit = async () => {
         setLoading(true);
