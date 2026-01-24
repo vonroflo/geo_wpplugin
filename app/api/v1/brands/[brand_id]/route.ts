@@ -7,8 +7,12 @@ import { z } from "zod";
 
 const ParamsZ = z.object({ brand_id: z.string() });
 
-export async function GET(req: Request, ctx: { params: any }) {
-    const p = parseParams(ctx.params, ParamsZ);
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ brand_id: string }> }
+) {
+    const resolvedParams = await params;
+    const p = parseParams(resolvedParams, ParamsZ);
     if (!p.ok) return p.response;
 
     const brand = await getBrandService(p.data.brand_id);
@@ -20,8 +24,12 @@ export async function GET(req: Request, ctx: { params: any }) {
     return ok(v.data);
 }
 
-export async function PATCH(req: Request, ctx: { params: any }) {
-    const p = parseParams(ctx.params, ParamsZ);
+export async function PATCH(
+    req: Request,
+    { params }: { params: Promise<{ brand_id: string }> }
+) {
+    const resolvedParams = await params;
+    const p = parseParams(resolvedParams, ParamsZ);
     if (!p.ok) return p.response;
 
     const b = await parseBody(req, BrandUpdateRequestZ);

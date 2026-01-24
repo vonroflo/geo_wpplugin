@@ -4,8 +4,12 @@ import { AgencyReportZ } from "@/lib/geo-zod-full";
 import { getAgencyReportService } from "@/lib/geo-services";
 import { validateResponse } from "@/lib/validators";
 
-export async function GET(req: Request, ctx: { params: any }) {
-    const p = parseParams(ctx.params, ScanIdParamZ);
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ scan_id: string }> }
+) {
+    const resolvedParams = await params;
+    const p = parseParams(resolvedParams, ScanIdParamZ);
     if (!p.ok) return p.response;
 
     const q = parseQuery(req, AgencyReportQueryZ);

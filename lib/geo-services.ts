@@ -84,12 +84,16 @@ export async function listBrandsService(args: {
     const db = getFirestore();
     const limit = Math.min(args.limit ?? 50, 200);
 
-    let q = db.collection("brands").orderBy("created_at", "desc").limit(limit);
+    // Build query with proper ordering: orderBy -> startAfter -> limit
+    let q: FirebaseFirestore.Query = db.collection("brands");
+    q = q.orderBy("created_at", "desc");
     if (args.cursor) q = q.startAfter(args.cursor);
+    q = q.limit(limit);
 
     const snap = await q.get();
     const items = snap.docs.map((d) => d.data() as BrandParsed);
-    const next_cursor = items.length ? items[items.length - 1].created_at : null;
+    // Only return cursor if we hit the limit (indicating more results may exist)
+    const next_cursor = items.length === limit ? items[items.length - 1].created_at : null;
     return { items, next_cursor };
 }
 
@@ -211,13 +215,16 @@ export async function listScansService(args: {
     const db = getFirestore();
     const limit = Math.min(args.limit ?? 50, 200);
 
-    let q = db.collection("scans").orderBy("created_at", "desc").limit(limit);
+    // Build query with proper ordering: where -> orderBy -> startAfter -> limit
+    let q: FirebaseFirestore.Query = db.collection("scans");
     if (args.brand_id) q = q.where("brand_id", "==", args.brand_id);
+    q = q.orderBy("created_at", "desc");
     if (args.cursor) q = q.startAfter(args.cursor);
+    q = q.limit(limit);
 
     const snap = await q.get();
     const items = snap.docs.map((d) => d.data() as ScanParsed);
-    const next_cursor = items.length ? items[items.length - 1].created_at : null;
+    const next_cursor = items.length === limit ? items[items.length - 1].created_at : null;
     return { items, next_cursor };
 }
 
@@ -333,6 +340,23 @@ export async function getTrendsService(args: {
 }
 
 /* ----------------------------
+   Action plan getter (read-only, no task enqueueing)
+---------------------------- */
+export async function getActionPlanService(args: {
+    scan_id: string;
+    goal: "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov";
+    time_horizon_days: number;
+}): Promise<ActionPlanParsed | null> {
+    const db = getFirestore();
+    const horizon = args.time_horizon_days ?? 30;
+    const planId = `plan_${args.scan_id}_${args.goal}_${horizon}`;
+
+    const existing = await db.collection("scan_action_plans").doc(planId).get();
+    if (existing.exists) return existing.data() as ActionPlanParsed;
+    return null;
+}
+
+/* ----------------------------
    Agency report
 ---------------------------- */
 export async function getAgencyReportService(args: {
@@ -351,7 +375,7 @@ export async function getAgencyReportService(args: {
         getScoresService(scan_id),
         getCompetitorWinnersService(scan_id),
         getDiagnosticsService(scan_id),
-        generateActionPlanService({ scan_id, goal, time_horizon_days }),
+        getActionPlanService({ scan_id, goal, time_horizon_days }),
     ]);
 
     // If critical parts aren't ready, the report isn't ready.
