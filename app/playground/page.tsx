@@ -2,6 +2,12 @@
 
 import { useState, useCallback, useEffect } from "react";
 
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type PlaygroundMode = "real" | "dev";
+
 type EndpointCategory = {
     name: string;
     icon: string;
@@ -27,283 +33,704 @@ type Field = {
     options?: { value: string; label: string }[];
     helpText?: string;
     defaultValue?: string | number;
-    nested?: Field[];
 };
+
+type InsightRunResponse = {
+    run_id: string;
+    status: "processing" | "completed" | "failed";
+    result: InsightResult | null;
+    error: string | null;
+    created_at: string;
+    updated_at: string;
+    poll_count?: number;
+};
+
+type InsightResult = {
+    brand: { id: string; name: string; domain: string | null };
+    scan: { id: string; status: string; created_at: string; completed_at: string | null };
+    scores: { visibility_score: number; share_of_voice: number; by_intent: Array<{ intent: string; score: number; sov: number }> } | null;
+    mentions: Array<{ subject: string; provider: string; intent_text: string; presence: string }>;
+    competitors: { winners_by_intent: Array<{ intent: string; winners: Array<{ name: string; mention_rate: number }> }> } | null;
+    diagnostics: { gaps: Array<{ type: string; severity: string; impact: string; recommended_actions: string[] }> } | null;
+    recommendations: { priorities: Array<{ priority: number; action: string; why: string; effort: string }> } | null;
+};
+
+type ApiResponse = {
+    url: string;
+    method: string;
+    status: number;
+    statusText: string;
+    time: number;
+    data: unknown;
+    raw: string;
+};
+
+// ============================================================================
+// DEV MODE ENDPOINT CONFIG
+// ============================================================================
 
 const ENDPOINT_CATEGORIES: EndpointCategory[] = [
     {
         name: "Brands",
         icon: "🏢",
-        description: "Manage your brand profiles",
+        description: "Manage brand profiles",
         endpoints: [
-            {
-                method: "GET",
-                path: "/api/v1/brands",
-                name: "List Brands",
-                description: "View all your brand profiles",
-                queryFields: [
-                    { key: "limit", label: "Results per page", type: "number", placeholder: "50", helpText: "Max 200" },
-                    { key: "cursor", label: "Page cursor", type: "text", placeholder: "For pagination" },
-                ],
-            },
-            {
-                method: "POST",
-                path: "/api/v1/brands",
-                name: "Create Brand",
-                description: "Add a new brand to track",
-                fields: [
-                    { key: "name", label: "Brand Name", type: "text", placeholder: "Acme Corp", required: true },
-                    { key: "domain", label: "Website Domain", type: "text", placeholder: "acme.com", helpText: "Main website domain" },
-                    { key: "aliases", label: "Brand Aliases", type: "text", placeholder: "Acme, ACME Inc", helpText: "Comma-separated alternative names" },
-                ],
-            },
-            {
-                method: "GET",
-                path: "/api/v1/brands/{brand_id}",
-                name: "Get Brand",
-                description: "View a specific brand's details",
-                fields: [
-                    { key: "brand_id", label: "Brand ID", type: "text", placeholder: "brand_abc123", required: true },
-                ],
-            },
-            {
-                method: "PATCH",
-                path: "/api/v1/brands/{brand_id}",
-                name: "Update Brand",
-                description: "Modify brand information",
-                fields: [
-                    { key: "brand_id", label: "Brand ID", type: "text", placeholder: "brand_abc123", required: true },
-                    { key: "name", label: "New Name", type: "text", placeholder: "Updated name" },
-                    { key: "domain", label: "New Domain", type: "text", placeholder: "newdomain.com" },
-                ],
-            },
+            { method: "GET", path: "/api/v1/brands", name: "List Brands", description: "View all brands", queryFields: [{ key: "limit", label: "Limit", type: "number", placeholder: "50" }] },
+            { method: "POST", path: "/api/v1/brands", name: "Create Brand", description: "Add a new brand", fields: [{ key: "name", label: "Brand Name", type: "text", placeholder: "Acme Corp", required: true }, { key: "domain", label: "Domain", type: "text", placeholder: "acme.com" }] },
+            { method: "GET", path: "/api/v1/brands/{brand_id}", name: "Get Brand", description: "View brand details", fields: [{ key: "brand_id", label: "Brand ID", type: "text", required: true }] },
         ],
     },
     {
         name: "Scans",
         icon: "🔍",
-        description: "Run AI visibility scans",
+        description: "AI visibility scans",
         endpoints: [
-            {
-                method: "GET",
-                path: "/api/v1/geo/scans",
-                name: "List Scans",
-                description: "View all scan results",
-                queryFields: [
-                    { key: "brand_id", label: "Filter by Brand", type: "text", placeholder: "brand_abc123" },
-                    { key: "limit", label: "Results per page", type: "number", placeholder: "50" },
-                ],
-            },
-            {
-                method: "POST",
-                path: "/api/v1/geo/scans",
-                name: "Create Scan",
-                description: "Start a new AI visibility scan for your brand",
-                fields: [
-                    { key: "brand_name", label: "Brand Name", type: "text", placeholder: "Acme Corp", required: true, helpText: "The brand you want to analyze" },
-                    { key: "brand_domain", label: "Brand Website", type: "text", placeholder: "acme.com" },
-                    { key: "location", label: "Target Market", type: "text", placeholder: "Austin, TX", required: true, helpText: "Geographic location to analyze" },
-                    { key: "radius_miles", label: "Radius (miles)", type: "number", placeholder: "50", defaultValue: 50 },
-                    { key: "category", label: "Business Category", type: "text", placeholder: "Software Development", required: true, helpText: "Your industry or service category" },
-                    { key: "intents", label: "Search Intents", type: "textarea", placeholder: "best software companies\nhire developers near me", required: true, helpText: "One search query per line - what would customers search?" },
-                    { key: "competitors", label: "Competitors", type: "textarea", placeholder: "TechCorp, techcorp.com\nDevHub, devhub.io", helpText: "One per line: Name, domain (optional)" },
-                    {
-                        key: "ai_sources", label: "AI Sources", type: "select", options: [
-                            { value: "chatgpt,gemini,perplexity", label: "All Sources (Recommended)" },
-                            { value: "chatgpt", label: "ChatGPT Only" },
-                            { value: "gemini", label: "Gemini Only" },
-                            { value: "perplexity", label: "Perplexity Only" },
-                        ], defaultValue: "chatgpt,gemini,perplexity"
-                    },
-                ],
-            },
-            {
-                method: "GET",
-                path: "/api/v1/geo/scans/{scan_id}",
-                name: "Get Scan",
-                description: "View detailed scan results",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                ],
-            },
+            { method: "GET", path: "/api/v1/geo/scans", name: "List Scans", description: "View all scans", queryFields: [{ key: "brand_id", label: "Brand ID", type: "text" }, { key: "limit", label: "Limit", type: "number" }] },
+            { method: "GET", path: "/api/v1/geo/scans/{scan_id}", name: "Get Scan", description: "View scan details", fields: [{ key: "scan_id", label: "Scan ID", type: "text", required: true }] },
         ],
     },
     {
-        name: "Scores & Insights",
-        icon: "📊",
-        description: "Visibility scores and diagnostics",
+        name: "Insights",
+        icon: "✨",
+        description: "Unified insights endpoint",
         endpoints: [
-            {
-                method: "GET",
-                path: "/api/v1/geo/scores",
-                name: "Get Visibility Scores",
-                description: "See your brand's AI visibility score breakdown",
-                queryFields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                    { key: "include_breakdown", label: "Include Breakdown", type: "select", options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
-                ],
-            },
-            {
-                method: "GET",
-                path: "/api/v1/geo/diagnostics",
-                name: "Get Diagnostics",
-                description: "Identify gaps and issues affecting your visibility",
-                queryFields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                ],
-            },
-            {
-                method: "GET",
-                path: "/api/v1/geo/trends",
-                name: "Get Trends",
-                description: "Track your visibility over time",
-                queryFields: [
-                    { key: "brand_id", label: "Brand ID", type: "text", placeholder: "brand_abc123", required: true },
-                    {
-                        key: "window", label: "Time Window", type: "select", options: [
-                            { value: "7d", label: "Last 7 days" },
-                            { value: "30d", label: "Last 30 days" },
-                            { value: "90d", label: "Last 90 days" },
-                            { value: "180d", label: "Last 6 months" },
-                            { value: "365d", label: "Last year" },
-                        ]
-                    },
-                ],
-            },
+            { method: "POST", path: "/api/v1/geo/insights", name: "Start Insights", description: "Start a new insight run", fields: [] },
+            { method: "GET", path: "/api/v1/geo/insights/{run_id}", name: "Get Run Status", description: "Check run status", fields: [{ key: "run_id", label: "Run ID", type: "text", required: true }] },
+        ],
+    },
+    {
+        name: "Scores",
+        icon: "📊",
+        description: "Visibility scores",
+        endpoints: [
+            { method: "GET", path: "/api/v1/geo/scores", name: "Get Scores", description: "Get visibility scores", queryFields: [{ key: "scan_id", label: "Scan ID", type: "text", required: true }] },
+            { method: "GET", path: "/api/v1/geo/diagnostics", name: "Get Diagnostics", description: "Get diagnostics", queryFields: [{ key: "scan_id", label: "Scan ID", type: "text", required: true }] },
         ],
     },
     {
         name: "Competitors",
         icon: "⚔️",
-        description: "Competitive intelligence",
+        description: "Competitive analysis",
         endpoints: [
-            {
-                method: "GET",
-                path: "/api/v1/geo/competitors/winners",
-                name: "Top Competitors",
-                description: "See who's winning in AI recommendations",
-                queryFields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                ],
-            },
-            {
-                method: "POST",
-                path: "/api/v1/geo/competitors/head-to-head",
-                name: "Head-to-Head",
-                description: "Compare your brand directly against a competitor",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                    { key: "competitor_name", label: "Competitor Name", type: "text", placeholder: "TechCorp", required: true },
-                    { key: "competitor_domain", label: "Competitor Domain", type: "text", placeholder: "techcorp.com" },
-                ],
-            },
-            {
-                method: "POST",
-                path: "/api/v1/geo/competitors/patterns",
-                name: "Competitor Patterns",
-                description: "Discover what makes competitors successful",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                    { key: "competitor_name", label: "Competitor Name", type: "text", placeholder: "TechCorp", required: true },
-                    {
-                        key: "focus", label: "Analysis Focus", type: "select", options: [
-                            { value: "content,entities,citations", label: "All Areas (Recommended)" },
-                            { value: "content", label: "Content Strategy" },
-                            { value: "entities", label: "Entity Signals" },
-                            { value: "citations", label: "Citations & Reviews" },
-                        ], defaultValue: "content,entities,citations"
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        name: "Recommendations",
-        icon: "💡",
-        description: "AI-powered action plans",
-        endpoints: [
-            {
-                method: "POST",
-                path: "/api/v1/geo/recommendations/action-plan",
-                name: "Generate Action Plan",
-                description: "Get prioritized steps to improve visibility",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                    {
-                        key: "goal", label: "Your Goal", type: "select", required: true, options: [
-                            { value: "increase_mentions", label: "Get mentioned more often" },
-                            { value: "increase_top_recommendations", label: "Become a top recommendation" },
-                            { value: "beat_competitor", label: "Beat a specific competitor" },
-                            { value: "improve_sov", label: "Increase share of voice" },
-                        ]
-                    },
-                    { key: "time_horizon_days", label: "Timeline (days)", type: "number", placeholder: "30", defaultValue: 30, helpText: "7-180 days" },
-                ],
-            },
-            {
-                method: "POST",
-                path: "/api/v1/geo/recommendations/content-briefs",
-                name: "Generate Content Briefs",
-                description: "Get ready-to-use content outlines",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                    {
-                        key: "brief_type", label: "Content Type", type: "select", options: [
-                            { value: "landing_page", label: "Landing Page" },
-                            { value: "blog_post", label: "Blog Post" },
-                            { value: "faq_page", label: "FAQ Page" },
-                            { value: "comparison_page", label: "Comparison Page" },
-                        ], defaultValue: "landing_page"
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        name: "Reports",
-        icon: "📑",
-        description: "Comprehensive reports",
-        endpoints: [
-            {
-                method: "GET",
-                path: "/api/v1/geo/reports/scan/{scan_id}",
-                name: "Agency Report",
-                description: "Full analysis report with scores, competitors, and recommendations",
-                fields: [
-                    { key: "scan_id", label: "Scan ID", type: "text", placeholder: "scan_abc123", required: true },
-                ],
-                queryFields: [
-                    {
-                        key: "goal", label: "Report Goal", type: "select", options: [
-                            { value: "increase_top_recommendations", label: "Become top recommendation" },
-                            { value: "increase_mentions", label: "Increase mentions" },
-                            { value: "beat_competitor", label: "Beat competitor" },
-                            { value: "improve_sov", label: "Improve share of voice" },
-                        ]
-                    },
-                    { key: "time_horizon_days", label: "Timeline (days)", type: "number", placeholder: "30" },
-                ],
-            },
+            { method: "GET", path: "/api/v1/geo/competitors/winners", name: "Top Competitors", description: "See winners", queryFields: [{ key: "scan_id", label: "Scan ID", type: "text", required: true }] },
         ],
     },
 ];
 
-const METHOD_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-    GET: { bg: "rgba(34, 197, 94, 0.1)", text: "#4ade80", border: "rgba(34, 197, 94, 0.3)" },
-    POST: { bg: "rgba(59, 130, 246, 0.1)", text: "#60a5fa", border: "rgba(59, 130, 246, 0.3)" },
-    PATCH: { bg: "rgba(245, 158, 11, 0.1)", text: "#fbbf24", border: "rgba(245, 158, 11, 0.3)" },
+const METHOD_STYLES: Record<string, { bg: string; text: string }> = {
+    GET: { bg: "bg-green-500/10", text: "text-green-400" },
+    POST: { bg: "bg-blue-500/10", text: "text-blue-400" },
+    PATCH: { bg: "bg-amber-500/10", text: "text-amber-400" },
 };
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export default function PlaygroundPage() {
+    const [mode, setMode] = useState<PlaygroundMode>("real");
+
+    return (
+        <div className="min-h-screen bg-zinc-950 text-zinc-100">
+            {/* Header */}
+            <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌍</span>
+                    <div>
+                        <h1 className="text-lg font-semibold">GEO API Playground</h1>
+                        <p className="text-xs text-zinc-500">Test your AI visibility</p>
+                    </div>
+                </div>
+
+                {/* Mode Toggle */}
+                <div className="flex items-center gap-2 bg-zinc-900 rounded-lg p-1">
+                    <button
+                        onClick={() => setMode("real")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === "real" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+                    >
+                        🚀 Real Test
+                    </button>
+                    <button
+                        onClick={() => setMode("dev")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === "dev" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white"}`}
+                    >
+                        🔧 Dev Mode
+                    </button>
+                </div>
+
+                <a href="/" className="text-sm text-zinc-500 hover:text-white">← Home</a>
+            </header>
+
+            {/* Content */}
+            {mode === "real" ? <RealTestMode /> : <DevMode />}
+        </div>
+    );
+}
+
+// ============================================================================
+// REAL TEST MODE
+// ============================================================================
+
+function RealTestMode() {
+    const [formData, setFormData] = useState({
+        brandName: "",
+        brandDomain: "",
+        location: "",
+        radiusMiles: "50",
+        category: "",
+        intents: "",
+        competitors: "",
+        aiSources: "chatgpt,gemini,perplexity",
+        goal: "increase_mentions",
+        timeHorizonDays: "30",
+    });
+
+    const [runId, setRunId] = useState<string | null>(null);
+    const [response, setResponse] = useState<ApiResponse | null>(null);
+    const [insightData, setInsightData] = useState<InsightRunResponse | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [polling, setPolling] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"insights" | "raw">("insights");
+
+    const handleChange = (key: string, value: string) => {
+        setFormData((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const buildRequestBody = () => ({
+        brand: {
+            name: formData.brandName,
+            domain: formData.brandDomain || null,
+        },
+        market: {
+            location: formData.location,
+            radius_miles: parseInt(formData.radiusMiles) || 50,
+        },
+        category: formData.category,
+        intents: formData.intents
+            .split("\n")
+            .filter(Boolean)
+            .map((text) => ({ text: text.trim(), funnel_stage: "awareness" })),
+        competitors: formData.competitors
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => {
+                const [name, domain] = line.split(",").map((s) => s.trim());
+                return { name, domain: domain || null };
+            }),
+        ai_sources: formData.aiSources.split(",").map((s) => s.trim()),
+        report_options: {
+            goal: formData.goal,
+            time_horizon_days: parseInt(formData.timeHorizonDays) || 30,
+        },
+    });
+
+    const makeRequest = async (url: string, method: string, body?: unknown): Promise<ApiResponse> => {
+        const startTime = performance.now();
+        const options: RequestInit = {
+            method,
+            headers: { "Content-Type": "application/json" },
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        const res = await fetch(url, options);
+        const raw = await res.text();
+        const endTime = performance.now();
+
+        let data: unknown;
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            data = { _parseError: true, raw };
+        }
+
+        return {
+            url,
+            method,
+            status: res.status,
+            statusText: res.statusText,
+            time: Math.round(endTime - startTime),
+            data,
+            raw,
+        };
+    };
+
+    const startInsightRun = async () => {
+        setLoading(true);
+        setError(null);
+        setRunId(null);
+        setInsightData(null);
+        setResponse(null);
+
+        try {
+            const body = buildRequestBody();
+            const resp = await makeRequest("/api/v1/geo/insights", "POST", body);
+            setResponse(resp);
+
+            if (resp.status >= 400) {
+                setError(`Request failed: ${resp.status} ${resp.statusText}`);
+                return;
+            }
+
+            const data = resp.data as InsightRunResponse;
+            setInsightData(data);
+            setRunId(data.run_id);
+
+            if (data.status === "processing") {
+                pollForCompletion(data.run_id);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Request failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const pollForCompletion = async (id: string) => {
+        setPolling(true);
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes with 5s intervals
+
+        const poll = async () => {
+            if (attempts >= maxAttempts) {
+                setPolling(false);
+                setError("Polling timeout - run may still be processing");
+                return;
+            }
+
+            attempts++;
+            try {
+                const resp = await makeRequest(`/api/v1/geo/insights/${id}`, "GET");
+                setResponse(resp);
+
+                if (resp.status >= 400) {
+                    setPolling(false);
+                    setError(`Poll failed: ${resp.status}`);
+                    return;
+                }
+
+                const data = resp.data as InsightRunResponse;
+                setInsightData(data);
+
+                if (data.status === "completed" || data.status === "failed") {
+                    setPolling(false);
+                    if (data.status === "failed") {
+                        setError(data.error || "Run failed");
+                    }
+                } else {
+                    setTimeout(poll, 5000);
+                }
+            } catch (err) {
+                setPolling(false);
+                setError(err instanceof Error ? err.message : "Poll failed");
+            }
+        };
+
+        poll();
+    };
+
+    const isValid = formData.brandName && formData.location && formData.category && formData.intents;
+
+    return (
+        <div className="flex h-[calc(100vh-73px)]">
+            {/* Form Panel */}
+            <div className="w-[480px] border-r border-zinc-800 p-6 overflow-y-auto">
+                <h2 className="text-lg font-semibold mb-1">Run AI Visibility Analysis</h2>
+                <p className="text-sm text-zinc-500 mb-6">Enter your brand details to get comprehensive insights</p>
+
+                <div className="space-y-5">
+                    {/* Brand Section */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Brand Information</legend>
+                        <FormField label="Brand Name" required value={formData.brandName} onChange={(v) => handleChange("brandName", v)} placeholder="Acme Corp" />
+                        <FormField label="Website Domain" value={formData.brandDomain} onChange={(v) => handleChange("brandDomain", v)} placeholder="acme.com" helpText="Optional - helps with attribution" />
+                    </fieldset>
+
+                    {/* Market Section */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Target Market</legend>
+                        <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" />
+                        <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" />
+                        <FormField label="Business Category" required value={formData.category} onChange={(v) => handleChange("category", v)} placeholder="Software Development" />
+                    </fieldset>
+
+                    {/* Intents Section */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Search Intents</legend>
+                        <FormField
+                            label="What would customers search?"
+                            required
+                            value={formData.intents}
+                            onChange={(v) => handleChange("intents", v)}
+                            type="textarea"
+                            placeholder={"best software development companies\nhire developers near me\ntop tech agencies"}
+                            helpText="One search query per line"
+                        />
+                    </fieldset>
+
+                    {/* Competitors Section */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Competitors (Optional)</legend>
+                        <FormField
+                            label="Competitor Names"
+                            value={formData.competitors}
+                            onChange={(v) => handleChange("competitors", v)}
+                            type="textarea"
+                            placeholder={"TechCorp, techcorp.com\nDevHub, devhub.io"}
+                            helpText="One per line: Name, domain (optional)"
+                        />
+                    </fieldset>
+
+                    {/* Options Section */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Analysis Options</legend>
+                        <FormField
+                            label="AI Sources"
+                            value={formData.aiSources}
+                            onChange={(v) => handleChange("aiSources", v)}
+                            type="select"
+                            options={[
+                                { value: "chatgpt,gemini,perplexity", label: "All Sources" },
+                                { value: "chatgpt", label: "ChatGPT Only" },
+                                { value: "gemini", label: "Gemini Only" },
+                                { value: "perplexity", label: "Perplexity Only" },
+                            ]}
+                        />
+                        <FormField
+                            label="Report Goal"
+                            value={formData.goal}
+                            onChange={(v) => handleChange("goal", v)}
+                            type="select"
+                            options={[
+                                { value: "increase_mentions", label: "Get mentioned more often" },
+                                { value: "increase_top_recommendations", label: "Become top recommendation" },
+                                { value: "beat_competitor", label: "Beat a competitor" },
+                                { value: "improve_sov", label: "Improve share of voice" },
+                            ]}
+                        />
+                    </fieldset>
+
+                    {/* Submit */}
+                    <button
+                        onClick={startInsightRun}
+                        disabled={!isValid || loading || polling}
+                        className={`w-full py-3 rounded-lg font-semibold text-white transition-colors ${!isValid || loading || polling ? "bg-zinc-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
+                    >
+                        {loading ? "Starting..." : polling ? `Analyzing... (poll #${insightData?.poll_count || 0})` : "🚀 Start Analysis"}
+                    </button>
+
+                    {runId && (
+                        <p className="text-xs text-zinc-500 text-center">
+                            Run ID: <code className="text-zinc-400">{runId}</code>
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* Results Panel */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900/50">
+                {/* Tabs */}
+                <div className="border-b border-zinc-800 px-6 flex items-center gap-1">
+                    <button
+                        onClick={() => setActiveTab("insights")}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "insights" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                    >
+                        📊 Insights
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("raw")}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "raw" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                    >
+                        {"</>"} Raw JSON
+                    </button>
+                    {response && (
+                        <div className="ml-auto flex items-center gap-3 text-xs">
+                            <span className={response.status < 400 ? "text-green-400" : "text-red-400"}>
+                                {response.status} {response.statusText}
+                            </span>
+                            <span className="text-zinc-500">{response.time}ms</span>
+                            <span className="text-zinc-600">{response.method} {response.url}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {error && (
+                        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+                            <strong>Error:</strong> {error}
+                        </div>
+                    )}
+
+                    {!insightData && !error && (
+                        <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                            <span className="text-5xl mb-4">🔍</span>
+                            <p className="text-lg">Ready to analyze</p>
+                            <p className="text-sm mt-1">Fill in the form and click Start Analysis</p>
+                        </div>
+                    )}
+
+                    {insightData && activeTab === "insights" && <InsightsDisplay data={insightData} />}
+                    {activeTab === "raw" && response && <RawJsonDisplay response={response} />}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================================
+// INSIGHTS DISPLAY COMPONENTS
+// ============================================================================
+
+function InsightsDisplay({ data }: { data: InsightRunResponse }) {
+    if (data.status === "processing") {
+        return (
+            <div className="flex flex-col items-center justify-center h-64">
+                <div className="animate-spin text-4xl mb-4">⏳</div>
+                <p className="text-lg text-zinc-400">Analysis in progress...</p>
+                <p className="text-sm text-zinc-600 mt-1">Poll count: {data.poll_count}</p>
+            </div>
+        );
+    }
+
+    if (data.status === "failed") {
+        return (
+            <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <h3 className="text-lg font-semibold text-red-400 mb-2">Analysis Failed</h3>
+                <p className="text-red-300">{data.error}</p>
+            </div>
+        );
+    }
+
+    const result = data.result;
+    if (!result) return <p className="text-zinc-500">No results available</p>;
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-xl font-semibold">{result.brand.name}</h3>
+                    <p className="text-sm text-zinc-500">{result.brand.domain || "No domain"}</p>
+                </div>
+                <div className="text-right text-sm text-zinc-500">
+                    <p>Scan: {result.scan.id}</p>
+                    <p>Status: <span className="text-green-400">{result.scan.status}</span></p>
+                </div>
+            </div>
+
+            {/* Scores */}
+            {result.scores && (
+                <InsightCard title="📊 Visibility Scores" icon="scores">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <ScoreBox label="Visibility Score" value={result.scores.visibility_score} max={100} />
+                        <ScoreBox label="Share of Voice" value={Math.round(result.scores.share_of_voice * 100)} max={100} suffix="%" />
+                    </div>
+                    {result.scores.by_intent.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-zinc-400 uppercase">By Intent</p>
+                            {result.scores.by_intent.map((intent, i) => (
+                                <div key={i} className="flex items-center justify-between text-sm">
+                                    <span className="text-zinc-300 truncate flex-1">{intent.intent}</span>
+                                    <span className="text-zinc-400 ml-4">Score: {intent.score}</span>
+                                    <span className="text-zinc-500 ml-4">SoV: {Math.round(intent.sov * 100)}%</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </InsightCard>
+            )}
+
+            {/* Mentions */}
+            {result.mentions.length > 0 && (
+                <InsightCard title="💬 Mentions" icon="mentions">
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {result.mentions.map((m, i) => (
+                            <div key={i} className="flex items-center justify-between text-sm py-1 border-b border-zinc-800 last:border-0">
+                                <span className="text-zinc-300">{m.subject}</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">{m.provider}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${m.presence === "recommended_top" ? "bg-green-500/20 text-green-400" : m.presence === "mentioned" ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-500"}`}>
+                                        {m.presence.replace("_", " ")}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </InsightCard>
+            )}
+
+            {/* Competitors */}
+            {result.competitors && result.competitors.winners_by_intent.length > 0 && (
+                <InsightCard title="⚔️ Competitor Winners" icon="competitors">
+                    <div className="space-y-4">
+                        {result.competitors.winners_by_intent.map((intent, i) => (
+                            <div key={i}>
+                                <p className="text-sm font-medium text-zinc-300 mb-2">{intent.intent}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {intent.winners.map((w, j) => (
+                                        <span key={j} className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">
+                                            {w.name} ({Math.round(w.mention_rate * 100)}%)
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </InsightCard>
+            )}
+
+            {/* Diagnostics */}
+            {result.diagnostics && result.diagnostics.gaps.length > 0 && (
+                <InsightCard title="🔍 Diagnostics" icon="diagnostics">
+                    <div className="space-y-3">
+                        {result.diagnostics.gaps.map((gap, i) => (
+                            <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm font-medium text-zinc-200">{gap.type.replace(/_/g, " ")}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${gap.severity === "critical" ? "bg-red-500/20 text-red-400" : gap.severity === "high" ? "bg-orange-500/20 text-orange-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                                        {gap.severity}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-zinc-400">{gap.impact}</p>
+                            </div>
+                        ))}
+                    </div>
+                </InsightCard>
+            )}
+
+            {/* Recommendations */}
+            {result.recommendations && result.recommendations.priorities.length > 0 && (
+                <InsightCard title="💡 Recommendations" icon="recommendations">
+                    <div className="space-y-3">
+                        {result.recommendations.priorities.slice(0, 5).map((rec, i) => (
+                            <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center font-semibold">
+                                        {rec.priority}
+                                    </span>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-zinc-200">{rec.action}</p>
+                                        <p className="text-xs text-zinc-500 mt-1">{rec.why}</p>
+                                        <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${rec.effort === "low" ? "bg-green-500/20 text-green-400" : rec.effort === "medium" ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`}>
+                                            {rec.effort} effort
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </InsightCard>
+            )}
+        </div>
+    );
+}
+
+function InsightCard({ title, children }: { title: string; icon: string; children: React.ReactNode }) {
+    return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <h4 className="text-sm font-semibold text-zinc-300 mb-3">{title}</h4>
+            {children}
+        </div>
+    );
+}
+
+function ScoreBox({ label, value, max, suffix = "" }: { label: string; value: number; max: number; suffix?: string }) {
+    const pct = Math.min(100, (value / max) * 100);
+    return (
+        <div className="bg-zinc-800 rounded-lg p-4">
+            <p className="text-xs text-zinc-500 mb-1">{label}</p>
+            <p className="text-2xl font-bold text-white">{value}{suffix}</p>
+            <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+            </div>
+        </div>
+    );
+}
+
+function RawJsonDisplay({ response }: { response: ApiResponse }) {
+    const [copied, setCopied] = useState(false);
+
+    const copy = () => {
+        navigator.clipboard.writeText(JSON.stringify(response.data, null, 2));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-3">
+                <div className="text-xs text-zinc-500">
+                    {response.method} {response.url} • {response.status} • {response.time}ms
+                </div>
+                <button onClick={copy} className="text-xs px-3 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white">
+                    {copied ? "✓ Copied" : "📋 Copy"}
+                </button>
+            </div>
+            <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 overflow-auto max-h-[600px] font-mono">
+                {JSON.stringify(response.data, null, 2)}
+            </pre>
+        </div>
+    );
+}
+
+// ============================================================================
+// FORM COMPONENTS
+// ============================================================================
+
+function FormField({
+    label,
+    value,
+    onChange,
+    type = "text",
+    placeholder,
+    helpText,
+    required,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    type?: "text" | "textarea" | "number" | "select";
+    placeholder?: string;
+    helpText?: string;
+    required?: boolean;
+    options?: { value: string; label: string }[];
+}) {
+    const baseClass = "w-full px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+
+    return (
+        <div>
+            <label className="flex items-center gap-1 text-sm font-medium text-zinc-300 mb-1.5">
+                {label}
+                {required && <span className="text-red-400">*</span>}
+            </label>
+            {type === "select" ? (
+                <select value={value} onChange={(e) => onChange(e.target.value)} className={baseClass}>
+                    {options?.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+            ) : type === "textarea" ? (
+                <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className={baseClass + " resize-y"} />
+            ) : (
+                <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={baseClass} />
+            )}
+            {helpText && <p className="mt-1 text-xs text-zinc-500">{helpText}</p>}
+        </div>
+    );
+}
+
+// ============================================================================
+// DEV MODE
+// ============================================================================
+
+function DevMode() {
     const [selectedCategory, setSelectedCategory] = useState(0);
     const [selectedEndpoint, setSelectedEndpoint] = useState(0);
     const [formData, setFormData] = useState<Record<string, string>>({});
-    const [response, setResponse] = useState<{ status: number; data: unknown; time: number } | null>(null);
+    const [response, setResponse] = useState<ApiResponse | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<"form" | "json">("form");
-    const [jsonBody, setJsonBody] = useState("");
-    const [copied, setCopied] = useState(false);
     const [origin, setOrigin] = useState("");
 
     useEffect(() => {
@@ -318,565 +745,148 @@ export default function PlaygroundPage() {
         setSelectedEndpoint(0);
         setFormData({});
         setResponse(null);
-        setError(null);
     };
 
     const handleEndpointChange = (index: number) => {
         setSelectedEndpoint(index);
         setFormData({});
         setResponse(null);
-        setError(null);
     };
-
-    const handleFieldChange = (key: string, value: string) => {
-        setFormData((prev) => ({ ...prev, [key]: value }));
-    };
-
-    const buildRequestBody = useCallback(() => {
-        if (viewMode === "json" && jsonBody.trim()) {
-            return JSON.parse(jsonBody);
-        }
-
-        if (endpoint.path === "/api/v1/geo/scans" && endpoint.method === "POST") {
-            const intents = (formData.intents || "").split("\n").filter(Boolean).map((text) => ({
-                text: text.trim(),
-                funnel_stage: "awareness",
-            }));
-            const competitors = (formData.competitors || "").split("\n").filter(Boolean).map((line) => {
-                const [name, domain] = line.split(",").map((s) => s.trim());
-                return { name, domain: domain || null };
-            });
-            return {
-                brand: { name: formData.brand_name, domain: formData.brand_domain || null },
-                market: { location: formData.location, radius_miles: Number(formData.radius_miles) || 50 },
-                category: formData.category,
-                intents,
-                competitors,
-                ai_sources: (formData.ai_sources || "chatgpt,gemini,perplexity").split(","),
-            };
-        }
-
-        if (endpoint.path.includes("head-to-head")) {
-            return {
-                scan_id: formData.scan_id,
-                competitor: { name: formData.competitor_name, domain: formData.competitor_domain || null },
-            };
-        }
-
-        if (endpoint.path.includes("patterns")) {
-            return {
-                scan_id: formData.scan_id,
-                competitor: { name: formData.competitor_name },
-                focus: (formData.focus || "content,entities,citations").split(","),
-            };
-        }
-
-        if (endpoint.path.includes("action-plan")) {
-            return {
-                scan_id: formData.scan_id,
-                goal: formData.goal,
-                time_horizon_days: Number(formData.time_horizon_days) || 30,
-            };
-        }
-
-        if (endpoint.path.includes("content-briefs")) {
-            return {
-                scan_id: formData.scan_id,
-                brief_type: formData.brief_type || "landing_page",
-            };
-        }
-
-        // Generic body builder for simple endpoints
-        const body: Record<string, unknown> = {};
-        endpoint.fields?.forEach((field) => {
-            if (formData[field.key]) {
-                if (field.key === "aliases") {
-                    body[field.key] = formData[field.key].split(",").map((s) => s.trim());
-                } else {
-                    body[field.key] = formData[field.key];
-                }
-            }
-        });
-        return body;
-    }, [endpoint, formData, viewMode, jsonBody]);
 
     const buildUrl = useCallback(() => {
         let url = endpoint.path;
-
-        // Replace path params
-        endpoint.fields?.forEach((field) => {
-            if (url.includes(`{${field.key}}`)) {
-                url = url.replace(`{${field.key}}`, encodeURIComponent(formData[field.key] || ""));
+        endpoint.fields?.forEach((f) => {
+            if (url.includes(`{${f.key}}`)) {
+                url = url.replace(`{${f.key}}`, encodeURIComponent(formData[f.key] || ""));
             }
         });
-
-        // Add query params
         const queryParts: string[] = [];
-        endpoint.queryFields?.forEach((field) => {
-            if (formData[field.key]) {
-                queryParts.push(`${field.key}=${encodeURIComponent(formData[field.key])}`);
-            }
+        endpoint.queryFields?.forEach((f) => {
+            if (formData[f.key]) queryParts.push(`${f.key}=${encodeURIComponent(formData[f.key])}`);
         });
-        if (queryParts.length) {
-            url += "?" + queryParts.join("&");
-        }
-
+        if (queryParts.length) url += "?" + queryParts.join("&");
         return url;
     }, [endpoint, formData]);
 
-    const generateCurl = useCallback(() => {
-        const url = buildUrl();
-        const fullUrl = `${origin}${url}`;
-
-        if (endpoint.method === "GET") {
-            return `curl "${fullUrl}"`;
-        }
-
-        const body = buildRequestBody();
-        return `curl -X ${endpoint.method} "${fullUrl}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
-    }, [endpoint, buildUrl, buildRequestBody, origin]);
-
     const handleSubmit = async () => {
         setLoading(true);
-        setError(null);
         setResponse(null);
-
         const startTime = performance.now();
 
         try {
             const url = buildUrl();
-            const options: RequestInit = {
-                method: endpoint.method,
-                headers: { "Content-Type": "application/json" },
-            };
-
-            if (endpoint.method !== "GET") {
-                options.body = JSON.stringify(buildRequestBody());
-            }
-
-            const res = await fetch(url, options);
-            const data = await res.json();
+            const res = await fetch(url, { method: endpoint.method, headers: { "Content-Type": "application/json" } });
+            const raw = await res.text();
             const endTime = performance.now();
 
-            setResponse({
-                status: res.status,
-                data,
-                time: Math.round(endTime - startTime),
-            });
+            let data: unknown;
+            try {
+                data = JSON.parse(raw);
+            } catch {
+                data = { _parseError: true, raw };
+            }
+
+            setResponse({ url, method: endpoint.method, status: res.status, statusText: res.statusText, time: Math.round(endTime - startTime), data, raw });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Request failed");
+            setResponse({ url: buildUrl(), method: endpoint.method, status: 0, statusText: "Network Error", time: 0, data: { error: err instanceof Error ? err.message : "Unknown error" }, raw: "" });
         } finally {
             setLoading(false);
         }
     };
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const generateCurl = () => {
+        const url = buildUrl();
+        return `curl "${origin}${url}"`;
     };
 
-    const isPathParam = (key: string) => endpoint.path.includes(`{${key}}`);
-
     return (
-        <div style={{ minHeight: "100vh", backgroundColor: "#09090b", color: "#fafafa", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-            {/* Header */}
-            <header style={{ borderBottom: "1px solid #27272a", padding: "1rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.5rem" }}>🌍</span>
-                    <div>
-                        <h1 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0 }}>GEO API Playground</h1>
-                        <p style={{ fontSize: "0.75rem", color: "#71717a", margin: 0 }}>Test endpoints interactively</p>
-                    </div>
-                </div>
-                <a href="/" style={{ fontSize: "0.875rem", color: "#a1a1aa", textDecoration: "none" }}>← Back to Home</a>
-            </header>
+        <div className="flex h-[calc(100vh-73px)]">
+            {/* Sidebar */}
+            <nav className="w-56 border-r border-zinc-800 p-4 overflow-y-auto">
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Endpoints</p>
+                {ENDPOINT_CATEGORIES.map((cat, i) => (
+                    <button
+                        key={cat.name}
+                        onClick={() => handleCategoryChange(i)}
+                        className={`w-full text-left px-3 py-2 rounded-lg mb-1 transition-colors ${selectedCategory === i ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"}`}
+                    >
+                        <span className="mr-2">{cat.icon}</span>
+                        {cat.name}
+                    </button>
+                ))}
+            </nav>
 
-            <div style={{ display: "flex", height: "calc(100vh - 73px)" }}>
-                {/* Sidebar - Categories */}
-                <nav style={{ width: 240, borderRight: "1px solid #27272a", padding: "1rem", overflowY: "auto" }}>
-                    <p style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#71717a", marginBottom: "0.75rem" }}>
-                        Categories
-                    </p>
-                    {ENDPOINT_CATEGORIES.map((cat, i) => (
+            {/* Main */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Endpoint tabs */}
+                <div className="border-b border-zinc-800 px-4 flex gap-1 overflow-x-auto">
+                    {category.endpoints.map((ep, i) => (
                         <button
-                            key={cat.name}
-                            onClick={() => handleCategoryChange(i)}
-                            style={{
-                                width: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.625rem",
-                                padding: "0.625rem 0.75rem",
-                                marginBottom: "0.25rem",
-                                backgroundColor: selectedCategory === i ? "#27272a" : "transparent",
-                                border: "none",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                                textAlign: "left",
-                            }}
+                            key={ep.path + ep.method}
+                            onClick={() => handleEndpointChange(i)}
+                            className={`px-3 py-3 text-sm flex items-center gap-2 border-b-2 transition-colors ${selectedEndpoint === i ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
                         >
-                            <span style={{ fontSize: "1rem" }}>{cat.icon}</span>
-                            <div>
-                                <div style={{ fontSize: "0.875rem", fontWeight: 500, color: selectedCategory === i ? "#fafafa" : "#a1a1aa" }}>{cat.name}</div>
-                                <div style={{ fontSize: "0.6875rem", color: "#52525b" }}>{cat.description}</div>
-                            </div>
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${METHOD_STYLES[ep.method].bg} ${METHOD_STYLES[ep.method].text}`}>{ep.method}</span>
+                            {ep.name}
                         </button>
                     ))}
-                </nav>
+                </div>
 
-                {/* Main Content */}
-                <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                    {/* Endpoint Tabs */}
-                    <div style={{ borderBottom: "1px solid #27272a", padding: "0 1.5rem", display: "flex", gap: "0.25rem", overflowX: "auto" }}>
-                        {category.endpoints.map((ep, i) => (
-                            <button
-                                key={ep.path + ep.method}
-                                onClick={() => handleEndpointChange(i)}
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.5rem",
-                                    padding: "0.875rem 1rem",
-                                    backgroundColor: "transparent",
-                                    border: "none",
-                                    borderBottom: selectedEndpoint === i ? "2px solid #3b82f6" : "2px solid transparent",
-                                    cursor: "pointer",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        padding: "0.125rem 0.375rem",
-                                        borderRadius: 4,
-                                        fontSize: "0.625rem",
-                                        fontWeight: 600,
-                                        backgroundColor: METHOD_STYLES[ep.method].bg,
-                                        color: METHOD_STYLES[ep.method].text,
-                                        border: `1px solid ${METHOD_STYLES[ep.method].border}`,
-                                    }}
-                                >
-                                    {ep.method}
-                                </span>
-                                <span style={{ fontSize: "0.875rem", fontWeight: 500, color: selectedEndpoint === i ? "#fafafa" : "#a1a1aa" }}>
-                                    {ep.name}
-                                </span>
-                            </button>
-                        ))}
+                {/* Request/Response */}
+                <div className="flex-1 grid grid-cols-2 overflow-hidden">
+                    {/* Request */}
+                    <div className="border-r border-zinc-800 p-6 overflow-y-auto">
+                        <h3 className="font-semibold mb-1">{endpoint.name}</h3>
+                        <p className="text-sm text-zinc-500 mb-4">{endpoint.description}</p>
+
+                        <div className="bg-zinc-900 rounded-lg p-3 mb-4 flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${METHOD_STYLES[endpoint.method].bg} ${METHOD_STYLES[endpoint.method].text}`}>{endpoint.method}</span>
+                            <code className="text-sm text-zinc-400">{buildUrl()}</code>
+                        </div>
+
+                        <div className="space-y-4">
+                            {endpoint.fields?.map((f) => (
+                                <FormField key={f.key} label={f.label} value={formData[f.key] || ""} onChange={(v) => setFormData((p) => ({ ...p, [f.key]: v }))} required={f.required} placeholder={f.placeholder} />
+                            ))}
+                            {endpoint.queryFields?.map((f) => (
+                                <FormField key={f.key} label={f.label} value={formData[f.key] || ""} onChange={(v) => setFormData((p) => ({ ...p, [f.key]: v }))} required={f.required} placeholder={f.placeholder} type={f.type === "number" ? "number" : "text"} />
+                            ))}
+                        </div>
+
+                        <button onClick={handleSubmit} disabled={loading} className={`w-full mt-6 py-3 rounded-lg font-semibold text-white ${loading ? "bg-zinc-700" : "bg-blue-600 hover:bg-blue-500"}`}>
+                            {loading ? "Sending..." : "Send Request"}
+                        </button>
+
+                        <div className="mt-4">
+                            <p className="text-xs text-zinc-500 mb-1">cURL</p>
+                            <pre className="bg-zinc-900 rounded p-2 text-xs text-zinc-400 overflow-x-auto">{generateCurl()}</pre>
+                        </div>
                     </div>
 
-                    {/* Request/Response Area */}
-                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden" }}>
-                        {/* Request Panel */}
-                        <div style={{ borderRight: "1px solid #27272a", padding: "1.5rem", overflowY: "auto" }}>
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.25rem" }}>{endpoint.name}</h2>
-                                <p style={{ fontSize: "0.875rem", color: "#71717a", marginBottom: "1rem" }}>{endpoint.description}</p>
-
-                                {/* URL Preview */}
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem", backgroundColor: "#18181b", borderRadius: 8, marginBottom: "1rem" }}>
-                                    <span
-                                        style={{
-                                            padding: "0.25rem 0.5rem",
-                                            borderRadius: 4,
-                                            fontSize: "0.75rem",
-                                            fontWeight: 600,
-                                            backgroundColor: METHOD_STYLES[endpoint.method].bg,
-                                            color: METHOD_STYLES[endpoint.method].text,
-                                        }}
-                                    >
-                                        {endpoint.method}
+                    {/* Response */}
+                    <div className="p-6 overflow-y-auto bg-zinc-900/50">
+                        <h3 className="font-semibold mb-4">Response</h3>
+                        {response ? (
+                            <>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className={`px-2 py-1 rounded text-sm font-semibold ${response.status < 400 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                                        {response.status} {response.statusText}
                                     </span>
-                                    <code style={{ fontSize: "0.8125rem", color: "#a1a1aa", wordBreak: "break-all" }}>{buildUrl()}</code>
+                                    <span className="text-sm text-zinc-500">{response.time}ms</span>
                                 </div>
-
-                                {/* Mode Toggle for POST/PATCH */}
-                                {endpoint.method !== "GET" && (
-                                    <div style={{ display: "flex", marginBottom: "1rem", backgroundColor: "#18181b", borderRadius: 6, padding: "0.25rem" }}>
-                                        <button
-                                            onClick={() => setViewMode("form")}
-                                            style={{
-                                                flex: 1,
-                                                padding: "0.5rem",
-                                                backgroundColor: viewMode === "form" ? "#27272a" : "transparent",
-                                                border: "none",
-                                                borderRadius: 4,
-                                                color: viewMode === "form" ? "#fafafa" : "#71717a",
-                                                fontSize: "0.8125rem",
-                                                fontWeight: 500,
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            📝 Form View
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setViewMode("json");
-                                                if (!jsonBody) {
-                                                    try {
-                                                        setJsonBody(JSON.stringify(buildRequestBody(), null, 2));
-                                                    } catch {
-                                                        setJsonBody("{}");
-                                                    }
-                                                }
-                                            }}
-                                            style={{
-                                                flex: 1,
-                                                padding: "0.5rem",
-                                                backgroundColor: viewMode === "json" ? "#27272a" : "transparent",
-                                                border: "none",
-                                                borderRadius: 4,
-                                                color: viewMode === "json" ? "#fafafa" : "#71717a",
-                                                fontSize: "0.8125rem",
-                                                fontWeight: 500,
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {"</>"} JSON View
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Form Fields */}
-                            {viewMode === "form" ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                                    {/* Path param fields */}
-                                    {endpoint.fields?.filter((f) => isPathParam(f.key)).map((field) => (
-                                        <FieldInput key={field.key} field={field} value={formData[field.key] || ""} onChange={handleFieldChange} />
-                                    ))}
-
-                                    {/* Query param fields */}
-                                    {endpoint.queryFields?.map((field) => (
-                                        <FieldInput key={field.key} field={field} value={formData[field.key] || ""} onChange={handleFieldChange} />
-                                    ))}
-
-                                    {/* Body fields */}
-                                    {endpoint.method !== "GET" && endpoint.fields?.filter((f) => !isPathParam(f.key)).map((field) => (
-                                        <FieldInput key={field.key} field={field} value={formData[field.key] || field.defaultValue?.toString() || ""} onChange={handleFieldChange} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <textarea
-                                    value={jsonBody}
-                                    onChange={(e) => setJsonBody(e.target.value)}
-                                    rows={16}
-                                    style={{
-                                        width: "100%",
-                                        padding: "1rem",
-                                        backgroundColor: "#18181b",
-                                        border: "1px solid #27272a",
-                                        borderRadius: 8,
-                                        color: "#fafafa",
-                                        fontSize: "0.8125rem",
-                                        fontFamily: "ui-monospace, monospace",
-                                        resize: "vertical",
-                                    }}
-                                />
-                            )}
-
-                            {/* Submit Button */}
-                            <button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                style={{
-                                    width: "100%",
-                                    marginTop: "1.5rem",
-                                    padding: "0.875rem",
-                                    backgroundColor: loading ? "#27272a" : "#3b82f6",
-                                    color: "#fff",
-                                    border: "none",
-                                    borderRadius: 8,
-                                    fontSize: "0.9375rem",
-                                    fontWeight: 600,
-                                    cursor: loading ? "not-allowed" : "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "0.5rem",
-                                }}
-                            >
-                                {loading ? (
-                                    <>
-                                        <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
-                                        Sending...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>🚀</span>
-                                        Send Request
-                                    </>
-                                )}
-                            </button>
-
-                            {/* cURL Command */}
-                            <div style={{ marginTop: "1.5rem" }}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                                    <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#71717a" }}>cURL Command</span>
-                                    <button
-                                        onClick={() => copyToClipboard(generateCurl())}
-                                        style={{
-                                            padding: "0.25rem 0.5rem",
-                                            backgroundColor: "transparent",
-                                            border: "1px solid #27272a",
-                                            borderRadius: 4,
-                                            color: "#a1a1aa",
-                                            fontSize: "0.6875rem",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        {copied ? "✓ Copied" : "Copy"}
-                                    </button>
-                                </div>
-                                <pre
-                                    style={{
-                                        padding: "0.75rem",
-                                        backgroundColor: "#18181b",
-                                        borderRadius: 6,
-                                        fontSize: "0.75rem",
-                                        fontFamily: "ui-monospace, monospace",
-                                        color: "#a1a1aa",
-                                        overflow: "auto",
-                                        whiteSpace: "pre-wrap",
-                                        wordBreak: "break-all",
-                                    }}
-                                >
-                                    {generateCurl()}
+                                <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 overflow-auto max-h-96 font-mono">
+                                    {JSON.stringify(response.data, null, 2)}
                                 </pre>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-48 text-zinc-600">
+                                <span className="text-3xl mb-2">📬</span>
+                                <p>Send a request to see the response</p>
                             </div>
-                        </div>
-
-                        {/* Response Panel */}
-                        <div style={{ padding: "1.5rem", overflowY: "auto", backgroundColor: "#0c0c0e" }}>
-                            <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1rem" }}>Response</h2>
-
-                            {error && (
-                                <div style={{ padding: "1rem", backgroundColor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 8, color: "#fca5a5", marginBottom: "1rem" }}>
-                                    <div style={{ fontWeight: 500, marginBottom: "0.25rem" }}>Request Failed</div>
-                                    <div style={{ fontSize: "0.875rem" }}>{error}</div>
-                                </div>
-                            )}
-
-                            {response && (
-                                <>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-                                        <span
-                                            style={{
-                                                padding: "0.375rem 0.75rem",
-                                                borderRadius: 6,
-                                                fontSize: "0.875rem",
-                                                fontWeight: 600,
-                                                backgroundColor: response.status < 400 ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                                                color: response.status < 400 ? "#4ade80" : "#f87171",
-                                            }}
-                                        >
-                                            {response.status} {response.status < 400 ? "OK" : "Error"}
-                                        </span>
-                                        <span style={{ fontSize: "0.875rem", color: "#71717a" }}>
-                                            ⏱️ {response.time}ms
-                                        </span>
-                                        <button
-                                            onClick={() => copyToClipboard(JSON.stringify(response.data, null, 2))}
-                                            style={{
-                                                marginLeft: "auto",
-                                                padding: "0.375rem 0.75rem",
-                                                backgroundColor: "transparent",
-                                                border: "1px solid #27272a",
-                                                borderRadius: 6,
-                                                color: "#a1a1aa",
-                                                fontSize: "0.75rem",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            📋 Copy
-                                        </button>
-                                    </div>
-
-                                    <pre
-                                        style={{
-                                            backgroundColor: "#18181b",
-                                            padding: "1rem",
-                                            borderRadius: 8,
-                                            overflow: "auto",
-                                            maxHeight: "calc(100vh - 280px)",
-                                            fontSize: "0.8125rem",
-                                            fontFamily: "ui-monospace, monospace",
-                                            lineHeight: 1.6,
-                                            color: "#e4e4e7",
-                                        }}
-                                    >
-                                        {JSON.stringify(response.data, null, 2)}
-                                    </pre>
-                                </>
-                            )}
-
-                            {!response && !error && (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, color: "#52525b" }}>
-                                    <span style={{ fontSize: "3rem", marginBottom: "1rem", opacity: 0.5 }}>📬</span>
-                                    <p style={{ fontSize: "0.9375rem" }}>Send a request to see the response</p>
-                                    <p style={{ fontSize: "0.8125rem", marginTop: "0.5rem" }}>Fill in the fields and click Send Request</p>
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
-                </main>
+                </div>
             </div>
-        </div>
-    );
-}
-
-function FieldInput({ field, value, onChange }: { field: Field; value: string; onChange: (key: string, value: string) => void }) {
-    const baseStyle = {
-        width: "100%",
-        padding: "0.75rem",
-        backgroundColor: "#18181b",
-        border: "1px solid #27272a",
-        borderRadius: 8,
-        color: "#fafafa",
-        fontSize: "0.875rem",
-    };
-
-    return (
-        <div>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.5rem" }}>
-                <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#e4e4e7" }}>{field.label}</span>
-                {field.required && <span style={{ color: "#f87171", fontSize: "0.75rem" }}>*</span>}
-            </label>
-
-            {field.type === "select" ? (
-                <select
-                    value={value || field.defaultValue?.toString() || ""}
-                    onChange={(e) => onChange(field.key, e.target.value)}
-                    style={{ ...baseStyle, cursor: "pointer" }}
-                >
-                    <option value="">Select...</option>
-                    {field.options?.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                </select>
-            ) : field.type === "textarea" ? (
-                <textarea
-                    value={value}
-                    onChange={(e) => onChange(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    rows={4}
-                    style={{ ...baseStyle, resize: "vertical", fontFamily: "inherit" }}
-                />
-            ) : (
-                <input
-                    type={field.type === "number" ? "number" : "text"}
-                    value={value}
-                    onChange={(e) => onChange(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    style={baseStyle}
-                />
-            )}
-
-            {field.helpText && (
-                <p style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "#71717a" }}>
-                    💡 {field.helpText}
-                </p>
-            )}
         </div>
     );
 }
