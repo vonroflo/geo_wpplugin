@@ -39,9 +39,9 @@ export const InsightsRequestZ = z.object({
     report_options: z
         .object({
             goal: z
-                .enum(["increase_mentions", "increase_top_recommendations", "beat_competitor", "improve_sov"])
+                .enum(["complete_report", "increase_mentions", "increase_top_recommendations", "beat_competitor", "improve_sov"])
                 .optional()
-                .default("increase_mentions"),
+                .default("complete_report"),
             time_horizon_days: z.number().int().min(7).max(180).optional().default(30),
         })
         .optional()
@@ -70,6 +70,11 @@ export const InsightMentionZ = z.object({
     provider: z.string(),
     intent_text: z.string(),
     presence: z.string(),
+    evidence: z.array(z.object({
+        type: z.string(),
+        excerpt: z.string().optional().nullable(),
+        source_url: z.string().optional().nullable(),
+    })).optional(),
 });
 
 export const InsightCompetitorsZ = z.object({
@@ -92,6 +97,7 @@ export const InsightDiagnosticsZ = z.object({
             type: z.string(),
             severity: z.string(),
             impact: z.string(),
+            affected_intents: z.array(z.string()).optional(),
             recommended_actions: z.array(z.string()),
         })
     ),

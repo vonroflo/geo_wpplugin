@@ -34,6 +34,171 @@ function isMockMode(): boolean {
 function generateMockResult(input: InsightRunInput): InsightRunResult {
     const brandId = `brand_mock_${Date.now()}`;
     const scanId = `scan_mock_${Date.now()}`;
+    const goal = input.report_options?.goal ?? "complete_report";
+    const isCompleteReport = goal === "complete_report";
+
+    // For complete_report, use all AI sources; otherwise use selected ones
+    const aiSources = isCompleteReport
+        ? ["chatgpt", "gemini", "perplexity", "claude"]
+        : (input.ai_sources ?? ["chatgpt", "gemini", "perplexity"]);
+
+    // Generate mentions for each intent and AI source
+    const mentions = input.intents.flatMap((intent) =>
+        aiSources.map((provider) => {
+            const presenceRoll = Math.random();
+            const presence = presenceRoll > 0.7 ? "recommended_top" : presenceRoll > 0.4 ? "mentioned" : "not_mentioned";
+
+            // Complete report includes evidence excerpts
+            const evidence = isCompleteReport && presence !== "not_mentioned" ? [
+                {
+                    type: "quote",
+                    excerpt: `"For ${intent.text}, ${input.brand.name} is ${presence === "recommended_top" ? "a top choice" : "worth considering"} in ${input.market.location}..."`,
+                },
+            ] : undefined;
+
+            return {
+                subject: input.brand.name,
+                provider,
+                intent_text: intent.text,
+                presence,
+                ...(evidence && { evidence }),
+            };
+        })
+    );
+
+    // Base diagnostics gaps
+    const baseGaps = [
+        {
+            type: "entity_clarity_gap",
+            severity: "medium" as const,
+            impact: `${input.brand.name} is not strongly associated with ${input.category}`,
+            affected_intents: input.intents.slice(0, 2).map((i) => i.text),
+            recommended_actions: [
+                "Create dedicated service pages for each offering",
+                "Add structured data markup (LocalBusiness schema)",
+                "Build topical authority through content",
+            ],
+        },
+        {
+            type: "citation_gap",
+            severity: "high" as const,
+            impact: "Limited third-party citations and reviews",
+            affected_intents: input.intents.map((i) => i.text),
+            recommended_actions: [
+                "Get listed on industry directories",
+                "Encourage customer reviews on Google",
+                "Pursue PR mentions and guest posts",
+            ],
+        },
+    ];
+
+    // Additional gaps for complete report
+    const completeReportGaps = isCompleteReport ? [
+        {
+            type: "content_freshness_gap",
+            severity: "medium" as const,
+            impact: "Content may be outdated compared to competitors",
+            affected_intents: input.intents.slice(0, 1).map((i) => i.text),
+            recommended_actions: [
+                "Update key service pages with recent case studies",
+                "Add a blog with regular industry updates",
+                "Refresh outdated statistics and references",
+            ],
+        },
+        {
+            type: "local_authority_gap",
+            severity: "high" as const,
+            impact: `Weak local presence signals for ${input.market.location}`,
+            affected_intents: input.intents.map((i) => i.text),
+            recommended_actions: [
+                "Optimize Google Business Profile",
+                "Build local backlinks from community sites",
+                "Create location-specific content and landing pages",
+            ],
+        },
+        {
+            type: "ai_quotable_gap",
+            severity: "critical" as const,
+            impact: "Content lacks the concise, quotable format AI models prefer",
+            affected_intents: input.intents.map((i) => i.text),
+            recommended_actions: [
+                "Add clear, factual summary paragraphs",
+                "Include bullet-point lists of key services/features",
+                "Create FAQ sections with direct answers",
+            ],
+        },
+    ] : [];
+
+    // Base recommendations
+    const baseRecommendations = [
+        {
+            priority: 1,
+            action: "Create location-specific landing pages",
+            why: "Competitors with local pages are getting 2x more mentions",
+            effort: "medium",
+        },
+        {
+            priority: 2,
+            action: "Add FAQ schema to key service pages",
+            why: "AI models frequently cite FAQ content in responses",
+            effort: "low",
+        },
+        {
+            priority: 3,
+            action: "Build comparison content",
+            why: "Users searching for comparisons often see competitors first",
+            effort: "medium",
+        },
+    ];
+
+    // Additional recommendations for complete report
+    const completeReportRecommendations = isCompleteReport ? [
+        {
+            priority: 4,
+            action: "Implement structured data markup",
+            why: "Structured data helps AI models understand and cite your content accurately",
+            effort: "low",
+        },
+        {
+            priority: 5,
+            action: "Create authoritative comparison guides",
+            why: "AI models often reference comparison content when users ask about options",
+            effort: "high",
+        },
+        {
+            priority: 6,
+            action: "Build strategic partnerships for citations",
+            why: "Third-party mentions from trusted sources increase AI confidence in recommendations",
+            effort: "high",
+        },
+        {
+            priority: 7,
+            action: "Develop comprehensive FAQ content",
+            why: "FAQ-style content matches how users query AI assistants",
+            effort: "medium",
+        },
+        {
+            priority: 8,
+            action: "Optimize for conversational search patterns",
+            why: "AI queries are more natural language; optimize content accordingly",
+            effort: "medium",
+        },
+    ] : [];
+
+    // More competitors for complete report
+    const competitorsList = isCompleteReport
+        ? [
+            { name: "Competitor A", mention_rate: 0.75 },
+            { name: "Competitor B", mention_rate: 0.58 },
+            { name: "Competitor C", mention_rate: 0.42 },
+            { name: input.brand.name, mention_rate: 0.31 },
+            { name: "Competitor D", mention_rate: 0.25 },
+        ]
+        : [
+            { name: "Competitor A", mention_rate: 0.7 },
+            { name: "Competitor B", mention_rate: 0.5 },
+            { name: input.brand.name, mention_rate: 0.3 },
+        ];
 
     return {
         brand: {
@@ -48,83 +213,26 @@ function generateMockResult(input: InsightRunInput): InsightRunResult {
             completed_at: new Date().toISOString(),
         },
         scores: {
-            visibility_score: Math.floor(Math.random() * 40) + 30, // 30-70
-            share_of_voice: Math.random() * 0.3 + 0.1, // 0.1-0.4
+            visibility_score: Math.floor(Math.random() * 40) + 30,
+            share_of_voice: Math.random() * 0.3 + 0.1,
             by_intent: input.intents.map((intent) => ({
                 intent: intent.text,
                 score: Math.floor(Math.random() * 50) + 25,
                 sov: Math.random() * 0.4 + 0.05,
             })),
         },
-        mentions: input.intents.flatMap((intent) => [
-            {
-                subject: input.brand.name,
-                provider: "chatgpt",
-                intent_text: intent.text,
-                presence: Math.random() > 0.5 ? "mentioned" : "not_mentioned",
-            },
-            {
-                subject: input.brand.name,
-                provider: "gemini",
-                intent_text: intent.text,
-                presence: Math.random() > 0.6 ? "recommended_top" : "mentioned",
-            },
-        ]),
+        mentions,
         competitors: {
             winners_by_intent: input.intents.map((intent) => ({
                 intent: intent.text,
-                winners: [
-                    { name: "Competitor A", mention_rate: 0.7 },
-                    { name: "Competitor B", mention_rate: 0.5 },
-                    { name: input.brand.name, mention_rate: 0.3 },
-                ],
+                winners: competitorsList,
             })),
         },
         diagnostics: {
-            gaps: [
-                {
-                    type: "entity_clarity_gap",
-                    severity: "medium",
-                    impact: `${input.brand.name} is not strongly associated with ${input.category}`,
-                    recommended_actions: [
-                        "Create dedicated service pages for each offering",
-                        "Add structured data markup (LocalBusiness schema)",
-                        "Build topical authority through content",
-                    ],
-                },
-                {
-                    type: "citation_gap",
-                    severity: "high",
-                    impact: "Limited third-party citations and reviews",
-                    recommended_actions: [
-                        "Get listed on industry directories",
-                        "Encourage customer reviews on Google",
-                        "Pursue PR mentions and guest posts",
-                    ],
-                },
-            ],
+            gaps: [...baseGaps, ...completeReportGaps],
         },
         recommendations: {
-            priorities: [
-                {
-                    priority: 1,
-                    action: "Create location-specific landing pages",
-                    why: "Competitors with local pages are getting 2x more mentions",
-                    effort: "medium",
-                },
-                {
-                    priority: 2,
-                    action: "Add FAQ schema to key service pages",
-                    why: "AI models frequently cite FAQ content in responses",
-                    effort: "low",
-                },
-                {
-                    priority: 3,
-                    action: "Build comparison content",
-                    why: "Users searching for comparisons often see competitors first",
-                    effort: "medium",
-                },
-            ],
+            priorities: [...baseRecommendations, ...completeReportRecommendations],
         },
     };
 }
@@ -277,7 +385,7 @@ async function gatherInsights(run: InsightRun, scan: Awaited<ReturnType<typeof g
     if (!scan) throw new Error("Scan is null");
 
     const scanId = run.scan_id!;
-    const goal = (run.input.report_options?.goal as "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov") ?? "increase_mentions";
+    const goal = (run.input.report_options?.goal as "complete_report" | "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov") ?? "complete_report";
     const timeHorizon = run.input.report_options?.time_horizon_days ?? 30;
 
     // Fetch all data in parallel (some may not exist yet)

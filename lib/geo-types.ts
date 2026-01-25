@@ -22,6 +22,7 @@ export type GapType =
     | "technical_accessibility_gap";
 
 export type ActionGoal =
+    | "complete_report"
     | "increase_mentions"
     | "increase_top_recommendations"
     | "beat_competitor"

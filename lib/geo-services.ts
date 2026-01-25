@@ -344,7 +344,7 @@ export async function getTrendsService(args: {
 ---------------------------- */
 export async function getActionPlanService(args: {
     scan_id: string;
-    goal: "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov";
+    goal: "complete_report" | "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov";
     time_horizon_days: number;
 }): Promise<ActionPlanParsed | null> {
     const db = getFirestore();
@@ -361,7 +361,7 @@ export async function getActionPlanService(args: {
 ---------------------------- */
 export async function getAgencyReportService(args: {
     scan_id: string;
-    goal: "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov";
+    goal: "complete_report" | "increase_mentions" | "increase_top_recommendations" | "beat_competitor" | "improve_sov";
     time_horizon_days: number;
 }): Promise<AgencyReportParsed | null> {
     const { scan_id, goal, time_horizon_days } = args;

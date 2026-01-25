@@ -151,7 +151,7 @@ export async function queryOpenAI(
                     content: prompt,
                 },
             ],
-            temperature: 0.7,
+            temperature: 0,
             max_tokens: 1000,
         });
 

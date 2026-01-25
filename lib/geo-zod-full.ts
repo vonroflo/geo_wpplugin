@@ -30,6 +30,7 @@ export const GapTypeZ = z.enum([
 ]);
 
 export const ActionGoalZ = z.enum([
+    "complete_report",
     "increase_mentions",
     "increase_top_recommendations",
     "beat_competitor",

@@ -253,7 +253,7 @@ export default function PlaygroundPage() {
     }
 
     return (
-        <div className={`min-h-screen transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950 ${theme}`}>
+        <div className="min-h-screen transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950">
             <div className="min-h-screen text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
                 {/* Header */}
                 <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
@@ -319,7 +319,7 @@ function RealTestMode() {
         intents: "",
         competitors: "",
         aiSources: "chatgpt,gemini,perplexity",
-        goal: "increase_mentions",
+        goal: "complete_report",
         timeHorizonDays: "30",
     });
 
@@ -342,6 +342,7 @@ function RealTestMode() {
     }, [formData]);
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [geoLoading, setGeoLoading] = useState(false);
 
     const [runId, setRunId] = useState<string | null>(null);
     const [response, setResponse] = useState<ApiResponse | null>(null);
@@ -354,6 +355,86 @@ function RealTestMode() {
 
     const handleChange = (key: string, value: string) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
+    };
+
+    // Get user's current location via browser geolocation API
+    const handleUseMyLocation = async () => {
+        if (!navigator.geolocation) {
+            setFormErrors((prev) => ({ ...prev, location: "Geolocation is not supported by your browser" }));
+            return;
+        }
+
+        setGeoLoading(true);
+        setFormErrors((prev) => ({ ...prev, location: "" }));
+
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 300000, // Cache for 5 minutes
+                });
+            });
+
+            const { latitude, longitude } = position.coords;
+
+            // Reverse geocode using OpenStreetMap Nominatim (free, no API key)
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`,
+                { headers: { "User-Agent": "GEO-API-Playground/1.0" } }
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to get location name");
+            }
+
+            const data = await response.json();
+            const address = data.address || {};
+
+            // Build location string (City, State format)
+            const city = address.city || address.town || address.village || address.municipality || address.county || "";
+            const state = address.state || address.region || "";
+            const country = address.country_code?.toUpperCase() || "";
+
+            let locationString = "";
+            if (city && state) {
+                locationString = `${city}, ${state}`;
+            } else if (city) {
+                locationString = city;
+            } else if (state) {
+                locationString = state;
+            } else if (data.display_name) {
+                // Fallback to display name parts
+                const parts = data.display_name.split(",").slice(0, 2).map((s: string) => s.trim());
+                locationString = parts.join(", ");
+            }
+
+            // Add country code if not US
+            if (country && country !== "US" && locationString) {
+                locationString += `, ${country}`;
+            }
+
+            if (locationString) {
+                setFormData((prev) => ({ ...prev, location: locationString }));
+            } else {
+                setFormErrors((prev) => ({ ...prev, location: "Could not determine your location" }));
+            }
+        } catch (err) {
+            const error = err as GeolocationPositionError | Error;
+            let message = "Failed to get your location";
+
+            if ("code" in error) {
+                switch (error.code) {
+                    case 1: message = "Location access denied. Please enable location permissions."; break;
+                    case 2: message = "Location unavailable. Please try again."; break;
+                    case 3: message = "Location request timed out. Please try again."; break;
+                }
+            }
+
+            setFormErrors((prev) => ({ ...prev, location: message }));
+        } finally {
+            setGeoLoading(false);
+        }
     };
 
     // Parse intents for suggestions
@@ -624,10 +705,6 @@ function RealTestMode() {
         poll();
     };
 
-    // Validation: if "Other" selected, customCategory must be filled
-    const finalCategory = getFinalCategory();
-    const isValid = formData.brandName && formData.location && finalCategory && formData.intents;
-
     return (
         <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)] overflow-hidden bg-white dark:bg-zinc-950">
             {/* Form Panel */}
@@ -646,7 +723,42 @@ function RealTestMode() {
                     {/* Market Section */}
                     <fieldset className="space-y-3">
                         <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Target Market</legend>
-                        <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" error={formErrors.location} />
+                        <div>
+                            <label className="flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                Location
+                                <span className="text-red-400">*</span>
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={formData.location}
+                                    onChange={(e) => handleChange("location", e.target.value)}
+                                    placeholder="Austin, TX"
+                                    className={`flex-1 px-3 py-2.5 bg-white dark:bg-zinc-900 border ${formErrors.location ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-700'} rounded-lg text-zinc-900 dark:text-zinc-100 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-all`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleUseMyLocation}
+                                    disabled={geoLoading}
+                                    className="flex items-center gap-1.5 px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Use my current location"
+                                >
+                                    {geoLoading ? (
+                                        <span className="animate-spin">⏳</span>
+                                    ) : (
+                                        <span>📍</span>
+                                    )}
+                                    <span className="hidden sm:inline">{geoLoading ? "Locating..." : "Nearby"}</span>
+                                </button>
+                            </div>
+                            <div className="min-h-[1.25rem] mt-1">
+                                {formErrors.location ? (
+                                    <p className="text-xs font-medium text-red-500 dark:text-red-400">{formErrors.location}</p>
+                                ) : (
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">City, State format or use 📍 for current location</p>
+                                )}
+                            </div>
+                        </div>
                         <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" error={formErrors.radiusMiles} />
                     </fieldset>
 
@@ -714,7 +826,7 @@ function RealTestMode() {
                                                     key={suggestion}
                                                     type="button"
                                                     onClick={() => handleSuggestionClick(suggestion)}
-                                                    className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
+                                                    className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
                                                 >
                                                     {suggestion}
                                                 </button>
@@ -760,6 +872,7 @@ function RealTestMode() {
                             onChange={(v) => handleChange("goal", v)}
                             type="select"
                             options={[
+                                { value: "complete_report", label: "Full detailed report" },
                                 { value: "increase_mentions", label: "Get mentioned more often" },
                                 { value: "increase_top_recommendations", label: "Become top recommendation" },
                                 { value: "beat_competitor", label: "Beat a competitor" },
@@ -830,20 +943,20 @@ function RealTestMode() {
                         <div className="mb-6 p-4 bg-blue-600/10 border border-blue-600/20 rounded-xl flex items-center justify-between animate-pulse">
                             <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
-                                <span className="text-sm font-medium text-blue-400">{insightData?.status_detail || "Gathering AI insights..."}</span>
+                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{insightData?.status_detail || "Gathering AI insights..."}</span>
                             </div>
-                            <span className="text-[10px] text-blue-500/70 font-mono">Poll #{insightData?.poll_count}</span>
+                            <span className="text-[10px] text-blue-600/70 dark:text-blue-500/70 font-mono">Poll #{insightData?.poll_count}</span>
                         </div>
                     )}
 
                     {error && (
-                        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+                        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-600 dark:text-red-400">
                             <strong>Error:</strong> {error}
                         </div>
                     )}
 
                     {!insightData && !error && (
-                        <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                        <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-600">
                             <span className="text-5xl mb-4">🔍</span>
                             <p className="text-lg">Ready to analyze</p>
                             <p className="text-sm mt-1">Fill in the form and click Start Analysis</p>
@@ -867,11 +980,11 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center">
                 <div className="animate-spin text-4xl mb-4">⏳</div>
-                <p className="text-lg text-zinc-400 font-medium">Analysis in progress...</p>
-                <p className="text-sm text-blue-400 mt-2 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
+                <p className="text-lg text-zinc-500 dark:text-zinc-400 font-medium">Analysis in progress...</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
                     {data.status_detail || "Gathering AI insights"}
                 </p>
-                <p className="text-xs text-zinc-600 mt-4 underline decoration-zinc-800">Poll count: {data.poll_count}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-4 underline decoration-zinc-300 dark:decoration-zinc-800">Poll count: {data.poll_count}</p>
             </div>
         );
     }
@@ -879,8 +992,8 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
     if (data.status === "failed") {
         return (
             <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <h3 className="text-lg font-semibold text-red-400 mb-2">Analysis Failed</h3>
-                <p className="text-red-300">{data.error}</p>
+                <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2">Analysis Failed</h3>
+                <p className="text-red-500 dark:text-red-300">{data.error}</p>
             </div>
         );
     }
@@ -893,7 +1006,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
             {/* Header */}
             <div className="flex items-center justify-between gap-4 mb-2">
                 <div>
-                    <h3 className="text-xl font-bold tracking-tight text-white">{result.brand.name}</h3>
+                    <h3 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">{result.brand.name}</h3>
                     {result.brand.domain && (
                         <p className="text-sm text-zinc-500 font-medium">{result.brand.domain}</p>
                     )}
@@ -910,12 +1023,12 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                     </div>
                     {result.scores.by_intent.length > 0 && (
                         <div className="space-y-2">
-                            <p className="text-xs font-semibold text-zinc-400 uppercase">By Intent</p>
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">By Intent</p>
                             {result.scores.by_intent.map((intent, i) => (
                                 <div key={i} className="flex items-center justify-between text-sm">
-                                    <span className="text-zinc-300 truncate flex-1">{intent.intent}</span>
-                                    <span className="text-zinc-400 ml-4">Score: {intent.score}</span>
-                                    <span className="text-zinc-500 ml-4">SoV: {Math.round(intent.sov * 100)}%</span>
+                                    <span className="text-zinc-700 dark:text-zinc-300 truncate flex-1">{intent.intent}</span>
+                                    <span className="text-zinc-500 dark:text-zinc-400 ml-4">Score: {intent.score}</span>
+                                    <span className="text-zinc-400 dark:text-zinc-500 ml-4">SoV: {Math.round(intent.sov * 100)}%</span>
                                 </div>
                             ))}
                         </div>
@@ -928,21 +1041,21 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                 <InsightCard title="Brand Mentions & Evidence" icon="mentions">
                     <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {result.mentions.map((m, i) => (
-                            <div key={i} className="pb-4 border-b border-zinc-800 last:border-0 last:pb-0">
+                            <div key={i} className="pb-4 border-b border-zinc-200 dark:border-zinc-800 last:border-0 last:pb-0">
                                 <div className="flex items-center justify-between text-sm mb-2">
-                                    <span className="text-zinc-200 font-medium">{m.intent_text}</span>
+                                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">{m.intent_text}</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 uppercase font-bold tracking-wider">{m.provider}</span>
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${m.presence === "recommended_top" ? "bg-green-500/20 text-green-400" : m.presence === "mentioned" ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-500"}`}>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-500 uppercase font-bold tracking-wider">{m.provider}</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${m.presence === "recommended_top" ? "bg-green-500/20 text-green-600 dark:text-green-400" : m.presence === "mentioned" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-500"}`}>
                                             {m.presence.replace("_", " ")}
                                         </span>
                                     </div>
                                 </div>
                                 {(m as any).evidence && (m as any).evidence.length > 0 && (
-                                    <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-lg p-3 text-xs text-zinc-400 italic leading-relaxed relative">
-                                        <span className="absolute top-2 left-2 text-zinc-600 text-base opacity-20">"</span>
+                                    <div className="bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800/50 rounded-lg p-3 text-xs text-zinc-600 dark:text-zinc-400 italic leading-relaxed relative">
+                                        <span className="absolute top-2 left-2 text-zinc-400 dark:text-zinc-600 text-base opacity-20">"</span>
                                         <p className="pl-3 pr-2">{(m as any).evidence[0].excerpt}</p>
-                                        <span className="absolute bottom-1 right-2 text-zinc-600 text-base opacity-20">"</span>
+                                        <span className="absolute bottom-1 right-2 text-zinc-400 dark:text-zinc-600 text-base opacity-20">"</span>
                                     </div>
                                 )}
                             </div>
@@ -957,10 +1070,10 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                     <div className="space-y-4">
                         {result.competitors.winners_by_intent.map((intent, i) => (
                             <div key={i}>
-                                <p className="text-sm font-medium text-zinc-300 mb-2">{intent.intent}</p>
+                                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{intent.intent}</p>
                                 <div className="flex flex-wrap gap-2">
                                     {intent.winners.map((w, j) => (
-                                        <span key={j} className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">
+                                        <span key={j} className="text-xs px-2 py-1 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                                             {w.name} ({Math.round(w.mention_rate * 100)}%)
                                         </span>
                                     ))}
@@ -976,18 +1089,18 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                 <InsightCard title="Diagnostics" icon="diagnostics">
                     <div className="space-y-3">
                         {result.diagnostics.gaps.map((gap, i) => (
-                            <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
+                            <div key={i} className="p-3 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium text-zinc-200">{gap.type.replace(/_/g, " ")}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${gap.severity === "critical" ? "bg-red-500/20 text-red-400" : gap.severity === "high" ? "bg-orange-500/20 text-orange-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{gap.type.replace(/_/g, " ")}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${gap.severity === "critical" ? "bg-red-500/20 text-red-600 dark:text-red-400" : gap.severity === "high" ? "bg-orange-500/20 text-orange-600 dark:text-orange-400" : "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400"}`}>
                                         {gap.severity}
                                     </span>
                                 </div>
-                                <p className="text-xs text-zinc-400 leading-relaxed mb-3">{gap.impact}</p>
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mb-3">{gap.impact}</p>
                                 {gap.affected_intents?.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5">
                                         {gap.affected_intents.map((intent, j) => (
-                                            <span key={j} className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-500 border border-zinc-800">
+                                            <span key={j} className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-500 border border-zinc-300 dark:border-zinc-800">
                                                 {intent}
                                             </span>
                                         ))}
@@ -1004,15 +1117,15 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                 <InsightCard title="Recommendations" icon="recommendations">
                     <div className="space-y-3">
                         {result.recommendations.priorities.slice(0, 5).map((rec, i) => (
-                            <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
+                            <div key={i} className="p-3 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
                                 <div className="flex items-start gap-3">
-                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center font-semibold">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs flex items-center justify-center font-semibold">
                                         {rec.priority}
                                     </span>
                                     <div className="flex-1">
-                                        <p className="text-sm font-medium text-zinc-200">{rec.action}</p>
+                                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{rec.action}</p>
                                         <p className="text-xs text-zinc-500 mt-1">{rec.why}</p>
-                                        <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${rec.effort === "low" ? "bg-green-500/20 text-green-400" : rec.effort === "medium" ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`}>
+                                        <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${rec.effort === "low" ? "bg-green-500/20 text-green-600 dark:text-green-400" : rec.effort === "medium" ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400" : "bg-red-500/20 text-red-600 dark:text-red-400"}`}>
                                             {rec.effort} effort
                                         </span>
                                     </div>
@@ -1023,7 +1136,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                 </InsightCard>
             )}
             {/* Footer Details */}
-            <div className="pt-8 pb-4 border-t border-zinc-800 mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+            <div className="pt-8 pb-4 border-t border-zinc-200 dark:border-zinc-800 mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-zinc-500 dark:text-zinc-600 font-mono uppercase tracking-widest">
                 <div className="flex gap-4">
                     <span>Scan ID: {result.scan.id}</span>
                 </div>
@@ -1046,7 +1159,7 @@ function CopyResultsButton({ data }: { data: InsightRunResponse }) {
     return (
         <button
             onClick={copy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors text-xs font-medium border border-zinc-700/50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-xs font-medium border border-zinc-300 dark:border-zinc-700/50"
         >
             {copied ? "✓ Copied" : "📋 Copy Results"}
         </button>
@@ -1337,7 +1450,7 @@ function DevMode() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-zinc-400 dark:text-zinc-600">
+                            <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-zinc-500 dark:text-zinc-500">
                                 <span className="text-5xl mb-4 opacity-50">📬</span>
                                 <p className="font-medium tracking-tight">Send a request to see the response</p>
                             </div>

@@ -56,6 +56,11 @@ export type InsightRunResult = {
         provider: string;
         intent_text: string;
         presence: string;
+        evidence?: Array<{
+            type: string;
+            excerpt?: string | null;
+            source_url?: string | null;
+        }>;
     }>;
     competitors: {
         winners_by_intent: Array<{
@@ -71,6 +76,7 @@ export type InsightRunResult = {
             type: string;
             severity: string;
             impact: string;
+            affected_intents?: string[];
             recommended_actions: string[];
         }>;
     } | null;
