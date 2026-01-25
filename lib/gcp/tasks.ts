@@ -71,12 +71,18 @@ export async function enqueueHttpTask(args: EnqueueTaskArgs) {
     }
 
     // PRODUCTION: Use Cloud Tasks
-    const projectId = args.projectId ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
-    if (!projectId) throw new Error("Missing GCP project id (set GCP_PROJECT or GOOGLE_CLOUD_PROJECT)");
+    const rawProjectId = args.projectId ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+    if (!rawProjectId) throw new Error("Missing GCP project id (set GCP_PROJECT or GOOGLE_CLOUD_PROJECT)");
+
+    const projectId = rawProjectId.trim();
+    const location = args.location.trim();
+    const queue = args.queue.trim();
+
+    console.log(`[enqueueHttpTask] Building path for: Project=${projectId}, Location=${location}, Queue=${queue}`);
 
     const tasksClient = getTasksClient();
-    const parent = tasksClient.queuePath(projectId, args.location, args.queue);
-    console.log(`[enqueueHttpTask] Queue Path: ${parent}`);
+    const parent = tasksClient.queuePath(projectId, location, queue);
+    console.log(`[enqueueHttpTask] Final Queue Path: ${parent}`);
     const body = Buffer.from(JSON.stringify(args.payload)).toString("base64");
 
     const task: any = {
