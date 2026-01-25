@@ -216,36 +216,41 @@ const METHOD_STYLES: Record<string, { bg: string; text: string }> = {
 export default function PlaygroundPage() {
     const [mode, setMode] = useState<PlaygroundMode>("real");
     const [theme, setTheme] = useState<"light" | "dark">("dark");
+    const [mounted, setMounted] = useState(false);
 
-    // Load theme from localStorage
+    // Load theme from localStorage on initial mount
     useEffect(() => {
         const saved = localStorage.getItem("playground_theme");
         if (saved === "light" || saved === "dark") {
             setTheme(saved);
         }
+        setMounted(true);
     }, []);
 
-    // Save theme and apply class to root element
+    // Apply theme whenever it changes
     useEffect(() => {
-        try {
-            const root = document.documentElement;
-            if (theme === "dark") {
-                root.classList.add("dark");
-                root.style.colorScheme = "dark";
-            } else {
-                root.classList.remove("dark");
-                root.style.colorScheme = "light";
-            }
-            localStorage.setItem("playground_theme", theme);
-            console.log("[Theme] Applied:", theme);
-        } catch (e) {
-            console.error("[Theme] Error applying theme:", e);
+        if (!mounted) return;
+
+        const root = document.documentElement;
+        if (theme === "dark") {
+            root.classList.add("dark");
+            root.style.colorScheme = "dark";
+        } else {
+            root.classList.remove("dark");
+            root.style.colorScheme = "light";
         }
-    }, [theme]);
+        localStorage.setItem("playground_theme", theme);
+    }, [theme, mounted]);
 
     const toggleTheme = () => {
+        console.log("[Theme] Toggling from:", theme);
         setTheme((prev) => (prev === "dark" ? "light" : "dark"));
     };
+
+    // Prevent hydration flicker
+    if (!mounted) {
+        return <div className="min-h-screen bg-zinc-950" />;
+    }
 
     return (
         <div className={`min-h-screen transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950 ${theme}`}>
