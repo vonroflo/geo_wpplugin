@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 
 // ============================================================================
 // CATEGORY SUGGESTION ENGINE
@@ -299,6 +299,7 @@ function RealTestMode() {
     const [insightData, setInsightData] = useState<InsightRunResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [polling, setPolling] = useState(false);
+    const pollingRef = useRef(false);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"insights" | "raw">("insights");
 
@@ -522,18 +523,21 @@ function RealTestMode() {
     };
 
     const stopAnalysis = () => {
+        pollingRef.current = false;
         setPolling(false);
         setError("Analysis stopped by user");
     };
 
     const pollForCompletion = async (id: string) => {
+        pollingRef.current = true;
         setPolling(true);
         let attempts = 0;
-        const maxAttempts = 60; // 5 minutes with 5s intervals
+        const maxAttempts = 120; // 10 minutes with 5s intervals
 
         const poll = async () => {
-            if (!polling) return; // Exit if user stopped
+            if (!pollingRef.current) return; // Exit if user stopped
             if (attempts >= maxAttempts) {
+                pollingRef.current = false;
                 setPolling(false);
                 setError("Polling timeout - run may still be processing");
                 return;
