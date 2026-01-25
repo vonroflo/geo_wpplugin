@@ -135,9 +135,9 @@ type InsightResult = {
     brand: { id: string; name: string; domain: string | null };
     scan: { id: string; status: string; created_at: string; completed_at: string | null };
     scores: { visibility_score: number; share_of_voice: number; by_intent: Array<{ intent: string; score: number; sov: number }> } | null;
-    mentions: Array<{ subject: string; provider: string; intent_text: string; presence: string }>;
+    mentions: Array<{ subject: string; provider: string; intent_text: string; presence: string; evidence?: Array<{ type: string; excerpt: string }> }>;
     competitors: { winners_by_intent: Array<{ intent: string; winners: Array<{ name: string; mention_rate: number }> }> } | null;
-    diagnostics: { gaps: Array<{ type: string; severity: string; impact: string; recommended_actions: string[] }> } | null;
+    diagnostics: { gaps: Array<{ type: string; severity: string; impact: string; affected_intents: string[]; recommended_actions: string[] }> } | null;
     recommendations: { priorities: Array<{ priority: number; action: string; why: string; effort: string }> } | null;
 };
 
@@ -938,7 +938,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                                     </span>
                                 </div>
                                 <p className="text-xs text-zinc-400 leading-relaxed mb-3">{gap.impact}</p>
-                                {gap.affected_intents.length > 0 && (
+                                {gap.affected_intents?.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5">
                                         {gap.affected_intents.map((intent, j) => (
                                             <span key={j} className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-500 border border-zinc-800">
