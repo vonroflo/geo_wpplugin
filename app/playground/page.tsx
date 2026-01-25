@@ -775,6 +775,17 @@ function RealTestMode() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    {/* Progress Header - only while polling */}
+                    {polling && (
+                        <div className="mb-6 p-4 bg-blue-600/10 border border-blue-600/20 rounded-xl flex items-center justify-between animate-pulse">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+                                <span className="text-sm font-medium text-blue-400">{insightData?.status_detail || "Gathering AI insights..."}</span>
+                            </div>
+                            <span className="text-[10px] text-blue-500/70 font-mono">Poll #{insightData?.poll_count}</span>
+                        </div>
+                    )}
+
                     {error && (
                         <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
                             <strong>Error:</strong> {error}
@@ -835,9 +846,12 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                     <h3 className="text-xl font-semibold">{result.brand.name}</h3>
                     <p className="text-sm text-zinc-500">{result.brand.domain || "No domain"}</p>
                 </div>
-                <div className="text-right text-sm text-zinc-500">
-                    <p>Scan: {result.scan.id}</p>
-                    <p>Status: <span className="text-green-400">{result.scan.status}</span></p>
+                <div className="flex gap-2">
+                    <CopyResultsButton data={data} />
+                    <div className="text-right text-sm text-zinc-500">
+                        <p>Scan: {result.scan.id}</p>
+                        <p>Status: <span className="text-green-400">{result.scan.status}</span></p>
+                    </div>
                 </div>
             </div>
 
@@ -923,7 +937,16 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                                         {gap.severity}
                                     </span>
                                 </div>
-                                <p className="text-xs text-zinc-400">{gap.impact}</p>
+                                <p className="text-xs text-zinc-400 leading-relaxed mb-3">{gap.impact}</p>
+                                {gap.affected_intents.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {gap.affected_intents.map((intent, j) => (
+                                            <span key={j} className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-500 border border-zinc-800">
+                                                {intent}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -957,11 +980,41 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
     );
 }
 
-function InsightCard({ title, children }: { title: string; icon: string; children: React.ReactNode }) {
+function CopyResultsButton({ data }: { data: InsightRunResponse }) {
+    const [copied, setCopied] = useState(false);
+    const copy = () => {
+        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-zinc-300 mb-3">{title}</h4>
-            {children}
+        <button
+            onClick={copy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors text-xs font-medium border border-zinc-700/50"
+        >
+            {copied ? "✓ Copied" : "📋 Copy Results"}
+        </button>
+    );
+}
+
+function InsightCard({ title, children, icon }: { title: string; icon: string; children: React.ReactNode }) {
+    const iconMap: Record<string, string> = {
+        scores: "📊",
+        mentions: "💬",
+        competitors: "⚔️",
+        diagnostics: "🔍",
+        recommendations: "💡"
+    };
+
+    return (
+        <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden shadow-sm backdrop-blur-sm">
+            <div className="px-5 py-4 border-b border-zinc-800/60 flex items-center gap-2.5">
+                <span className="text-base">{iconMap[icon] || "✨"}</span>
+                <h4 className="text-sm font-bold text-zinc-200 tracking-tight uppercase">{title}</h4>
+            </div>
+            <div className="p-5">
+                {children}
+            </div>
         </div>
     );
 }
