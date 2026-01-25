@@ -264,14 +264,34 @@ function RealTestMode() {
         brandDomain: "",
         location: "",
         radiusMiles: "50",
-        selectedCategory: "", // dropdown value
-        customCategory: "",   // custom input when "Other" selected
+        selectedCategory: "",
+        customCategory: "",
         intents: "",
         competitors: "",
         aiSources: "chatgpt,gemini,perplexity",
         goal: "increase_mentions",
         timeHorizonDays: "30",
     });
+
+    // Restore from localStorage on mount
+    useEffect(() => {
+        const saved = localStorage.getItem("playground_form_data");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setFormData((prev) => ({ ...prev, ...parsed }));
+            } catch (e) {
+                console.error("Failed to restore from localStorage", e);
+            }
+        }
+    }, []);
+
+    // Save to localStorage on change
+    useEffect(() => {
+        localStorage.setItem("playground_form_data", JSON.stringify(formData));
+    }, [formData]);
+
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const [runId, setRunId] = useState<string | null>(null);
     const [response, setResponse] = useState<ApiResponse | null>(null);
@@ -315,6 +335,35 @@ function RealTestMode() {
             return formData.customCategory.trim();
         }
         return formData.selectedCategory;
+    };
+
+    const validateForm = () => {
+        const errors: Record<string, string> = {};
+
+        if (!formData.brandName.trim()) errors.brandName = "Brand name is required";
+
+        if (formData.brandDomain) {
+            const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+            if (!domainRegex.test(formData.brandDomain.trim())) {
+                errors.brandDomain = "Invalid domain format (e.g., example.com)";
+            }
+        }
+
+        if (!formData.location.trim()) errors.location = "Location is required";
+
+        const radius = parseInt(formData.radiusMiles);
+        if (isNaN(radius) || radius < 1 || radius > 200) {
+            errors.radiusMiles = "Radius must be between 1 and 200 miles";
+        }
+
+        if (!getFinalCategory()) errors.selectedCategory = "Category is required";
+
+        const intentsCount = formData.intents.split("\n").filter(Boolean).length;
+        if (intentsCount === 0) errors.intents = "At least one intent is required";
+        if (intentsCount > 10) errors.intents = "Maximum 10 intents allowed";
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const buildRequestBody = () => {
@@ -399,11 +448,13 @@ function RealTestMode() {
     };
 
     const startInsightRun = async () => {
+        if (!validateForm()) return;
         setLoading(true);
         setError(null);
         setRunId(null);
         setInsightData(null);
         setResponse(null);
+        setFormErrors({});
 
         try {
             const body = buildRequestBody();
@@ -469,12 +520,18 @@ function RealTestMode() {
         }
     };
 
+    const stopAnalysis = () => {
+        setPolling(false);
+        setError("Analysis stopped by user");
+    };
+
     const pollForCompletion = async (id: string) => {
         setPolling(true);
         let attempts = 0;
         const maxAttempts = 60; // 5 minutes with 5s intervals
 
         const poll = async () => {
+            if (!polling) return; // Exit if user stopped
             if (attempts >= maxAttempts) {
                 setPolling(false);
                 setError("Polling timeout - run may still be processing");
@@ -528,15 +585,15 @@ function RealTestMode() {
                     {/* Brand Section */}
                     <fieldset className="space-y-3">
                         <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Brand Information</legend>
-                        <FormField label="Brand Name" required value={formData.brandName} onChange={(v) => handleChange("brandName", v)} placeholder="Acme Corp" />
-                        <FormField label="Website Domain" value={formData.brandDomain} onChange={(v) => handleChange("brandDomain", v)} placeholder="acme.com" helpText="Optional - helps with attribution" />
+                        <FormField label="Brand Name" required value={formData.brandName} onChange={(v) => handleChange("brandName", v)} placeholder="Acme Corp" error={formErrors.brandName} />
+                        <FormField label="Website Domain" value={formData.brandDomain} onChange={(v) => handleChange("brandDomain", v)} placeholder="acme.com" helpText="Optional - helps with attribution" error={formErrors.brandDomain} />
                     </fieldset>
 
                     {/* Market Section */}
                     <fieldset className="space-y-3">
                         <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Target Market</legend>
-                        <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" />
-                        <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" />
+                        <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" error={formErrors.location} />
+                        <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" error={formErrors.radiusMiles} />
                     </fieldset>
 
                     {/* Intents Section */}
@@ -550,6 +607,7 @@ function RealTestMode() {
                             type="textarea"
                             placeholder={"best software development companies\nhire developers near me\ntop tech agencies"}
                             helpText="One search query per line"
+                            error={formErrors.intents}
                         />
                     </fieldset>
 
@@ -655,13 +713,22 @@ function RealTestMode() {
                     </fieldset>
 
                     {/* Submit */}
-                    <button
-                        onClick={startInsightRun}
-                        disabled={!isValid || loading || polling}
-                        className={`w-full py-3 rounded-lg font-semibold text-white transition-colors ${!isValid || loading || polling ? "bg-zinc-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
-                    >
-                        {loading ? "Starting..." : polling ? `Analyzing... (poll #${insightData?.poll_count || 0})` : "🚀 Start Analysis"}
-                    </button>
+                    {!polling ? (
+                        <button
+                            onClick={startInsightRun}
+                            disabled={loading}
+                            className={`w-full py-3 rounded-lg font-semibold text-white transition-colors ${loading ? "bg-zinc-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"}`}
+                        >
+                            {loading ? "Starting..." : "🚀 Start Analysis"}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={stopAnalysis}
+                            className="w-full py-3 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-500 transition-colors"
+                        >
+                            🛑 Stop Analysis (poll #{insightData?.poll_count || 0})
+                        </button>
+                    )}
 
                     {runId && (
                         <p className="text-xs text-zinc-500 text-center">
@@ -931,6 +998,7 @@ function FormField({
     helpText,
     required,
     options,
+    error,
 }: {
     label: string;
     value: string;
@@ -940,8 +1008,9 @@ function FormField({
     helpText?: string;
     required?: boolean;
     options?: { value: string; label: string }[];
+    error?: string;
 }) {
-    const baseClass = "w-full px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+    const baseClass = `w-full px-3 py-2.5 bg-zinc-900 border ${error ? 'border-red-500' : 'border-zinc-700'} rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`;
 
     return (
         <div>
@@ -960,7 +1029,8 @@ function FormField({
             ) : (
                 <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={baseClass} />
             )}
-            {helpText && <p className="mt-1 text-xs text-zinc-500">{helpText}</p>}
+            {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+            {helpText && !error && <p className="mt-1 text-xs text-zinc-500">{helpText}</p>}
         </div>
     );
 }
