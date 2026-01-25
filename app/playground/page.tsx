@@ -580,9 +580,9 @@ function RealTestMode() {
     const isValid = formData.brandName && formData.location && finalCategory && formData.intents;
 
     return (
-        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)]">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)] overflow-hidden">
             {/* Form Panel */}
-            <div className="w-full lg:w-[480px] border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto">
+            <div className="w-full lg:w-[480px] border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto lg:max-h-full">
                 <h2 className="text-lg font-semibold mb-1">Run AI Visibility Analysis</h2>
                 <p className="text-sm text-zinc-500 mb-6">Enter your brand details to get comprehensive insights</p>
 
@@ -654,24 +654,26 @@ function RealTestMode() {
                                 />
                             )}
 
-                            {/* Category suggestions from intents */}
-                            {categorySuggestions.length > 0 && !formData.selectedCategory && (
-                                <div className="mt-2">
-                                    <p className="text-xs text-zinc-500 mb-1.5">Suggested based on your intents:</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {categorySuggestions.map((suggestion) => (
-                                            <button
-                                                key={suggestion}
-                                                type="button"
-                                                onClick={() => handleSuggestionClick(suggestion)}
-                                                className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
-                                            >
-                                                {suggestion}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            {/* Category suggestions with stable height area */}
+                            <div className="min-h-[3.5rem] mt-2">
+                                {categorySuggestions.length > 0 && !formData.selectedCategory && (
+                                    <>
+                                        <p className="text-xs text-zinc-500 mb-1.5">Suggested based on your intents:</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {categorySuggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion}
+                                                    type="button"
+                                                    onClick={() => handleSuggestionClick(suggestion)}
+                                                    className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
+                                                >
+                                                    {suggestion}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </fieldset>
 
@@ -841,23 +843,19 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4 mb-2">
                 <div>
-                    <h3 className="text-xl font-semibold">{result.brand.name}</h3>
-                    <p className="text-sm text-zinc-500">{result.brand.domain || "No domain"}</p>
+                    <h3 className="text-xl font-bold tracking-tight text-white">{result.brand.name}</h3>
+                    {result.brand.domain && (
+                        <p className="text-sm text-zinc-500 font-medium">{result.brand.domain}</p>
+                    )}
                 </div>
-                <div className="flex gap-2">
-                    <CopyResultsButton data={data} />
-                    <div className="text-right text-sm text-zinc-500">
-                        <p>Scan: {result.scan.id}</p>
-                        <p>Status: <span className="text-green-400">{result.scan.status}</span></p>
-                    </div>
-                </div>
+                <CopyResultsButton data={data} />
             </div>
 
             {/* Scores */}
             {result.scores && (
-                <InsightCard title="📊 Visibility Scores" icon="scores">
+                <InsightCard title="Visibility Scores" icon="scores">
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <ScoreBox label="Visibility Score" value={result.scores.visibility_score} max={100} />
                         <ScoreBox label="Share of Voice" value={Math.round(result.scores.share_of_voice * 100)} max={100} suffix="%" />
@@ -879,7 +877,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
 
             {/* Mentions */}
             {result.mentions.length > 0 && (
-                <InsightCard title="💬 Brand Mentions & Evidence" icon="mentions">
+                <InsightCard title="Brand Mentions & Evidence" icon="mentions">
                     <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {result.mentions.map((m, i) => (
                             <div key={i} className="pb-4 border-b border-zinc-800 last:border-0 last:pb-0">
@@ -907,7 +905,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
 
             {/* Competitors */}
             {result.competitors && result.competitors.winners_by_intent.length > 0 && (
-                <InsightCard title="⚔️ Competitor Winners" icon="competitors">
+                <InsightCard title="Competitor Winners" icon="competitors">
                     <div className="space-y-4">
                         {result.competitors.winners_by_intent.map((intent, i) => (
                             <div key={i}>
@@ -927,7 +925,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
 
             {/* Diagnostics */}
             {result.diagnostics && result.diagnostics.gaps.length > 0 && (
-                <InsightCard title="🔍 Diagnostics" icon="diagnostics">
+                <InsightCard title="Diagnostics" icon="diagnostics">
                     <div className="space-y-3">
                         {result.diagnostics.gaps.map((gap, i) => (
                             <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
@@ -955,7 +953,7 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
 
             {/* Recommendations */}
             {result.recommendations && result.recommendations.priorities.length > 0 && (
-                <InsightCard title="💡 Recommendations" icon="recommendations">
+                <InsightCard title="Recommendations" icon="recommendations">
                     <div className="space-y-3">
                         {result.recommendations.priorities.slice(0, 5).map((rec, i) => (
                             <div key={i} className="p-3 bg-zinc-800/50 rounded-lg">
@@ -976,6 +974,16 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
                     </div>
                 </InsightCard>
             )}
+            {/* Footer Details */}
+            <div className="pt-8 pb-4 border-t border-zinc-800 mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                <div className="flex gap-4">
+                    <span>Scan ID: {result.scan.id}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span>Status: {result.scan.status} • {result.scan.completed_at ? new Date(result.scan.completed_at).toLocaleDateString() : 'Processing'}</span>
+                </div>
+            </div>
         </div>
     );
 }
@@ -1102,8 +1110,15 @@ function FormField({
             ) : (
                 <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={baseClass} />
             )}
-            {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-            {helpText && !error && <p className="mt-1 text-xs text-zinc-500">{helpText}</p>}
+
+            {/* Stable area for error/help text to prevent shifting */}
+            <div className="min-h-[1.25rem] mt-1">
+                {error ? (
+                    <p className="text-xs text-red-400">{error}</p>
+                ) : helpText ? (
+                    <p className="text-xs text-zinc-500">{helpText}</p>
+                ) : null}
+            </div>
         </div>
     );
 }
