@@ -76,6 +76,7 @@ export async function enqueueHttpTask(args: EnqueueTaskArgs) {
 
     const tasksClient = getTasksClient();
     const parent = tasksClient.queuePath(projectId, args.location, args.queue);
+    console.log(`[enqueueHttpTask] Queue Path: ${parent}`);
     const body = Buffer.from(JSON.stringify(args.payload)).toString("base64");
 
     const task: any = {
