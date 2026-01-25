@@ -98,9 +98,17 @@ export type InsightRun = {
     poll_count: number;
 };
 
-// DEV-ONLY: Simple in-memory Map
+// DEV-ONLY: In-memory Map with globalThis to survive hot reloads
 // WARNING: This will be lost on server restart and doesn't work with multiple instances
-const runStore = new Map<string, InsightRun>();
+const globalForStore = globalThis as unknown as {
+    _insightRunStore: Map<string, InsightRun> | undefined;
+};
+
+if (!globalForStore._insightRunStore) {
+    globalForStore._insightRunStore = new Map<string, InsightRun>();
+}
+
+const runStore = globalForStore._insightRunStore;
 
 // Cleanup old runs after 1 hour (dev convenience)
 const RUN_TTL_MS = 60 * 60 * 1000;

@@ -1,6 +1,91 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+
+// ============================================================================
+// CATEGORY SUGGESTION ENGINE
+// ============================================================================
+
+const CATEGORY_OPTIONS = [
+    { value: "Real Estate", label: "Real Estate" },
+    { value: "Home Services", label: "Home Services" },
+    { value: "Legal", label: "Legal" },
+    { value: "Healthcare", label: "Healthcare" },
+    { value: "Finance", label: "Finance" },
+    { value: "Software", label: "Software" },
+    { value: "Food & Beverage", label: "Food & Beverage" },
+    { value: "Fitness", label: "Fitness" },
+    { value: "Beauty", label: "Beauty" },
+    { value: "Automotive", label: "Automotive" },
+    { value: "Education", label: "Education" },
+    { value: "Travel", label: "Travel" },
+    { value: "E-commerce", label: "E-commerce" },
+    { value: "Marketing", label: "Marketing" },
+] as const;
+
+const KEYWORD_TO_CATEGORY: Record<string, string> = {
+    // Real Estate
+    property: "Real Estate", apartment: "Real Estate", rentals: "Real Estate", leasing: "Real Estate",
+    realtor: "Real Estate", mortgage: "Real Estate", housing: "Real Estate", condo: "Real Estate",
+    // Home Services
+    plumber: "Home Services", hvac: "Home Services", electrician: "Home Services", roofing: "Home Services",
+    contractor: "Home Services", renovation: "Home Services", handyman: "Home Services", cleaning: "Home Services",
+    // Legal
+    law: "Legal", attorney: "Legal", dui: "Legal", lawyer: "Legal", litigation: "Legal",
+    divorce: "Legal", immigration: "Legal", criminal: "Legal",
+    // Healthcare
+    dentist: "Healthcare", clinic: "Healthcare", medspa: "Healthcare", doctor: "Healthcare",
+    therapy: "Healthcare", hospital: "Healthcare", medical: "Healthcare", health: "Healthcare",
+    // Finance
+    accounting: "Finance", bookkeeping: "Finance", tax: "Finance", cpa: "Finance",
+    financial: "Finance", investment: "Finance", banking: "Finance", loan: "Finance",
+    // Software
+    crm: "Software", automation: "Software", api: "Software", saas: "Software",
+    software: "Software", developer: "Software", app: "Software", tech: "Software", platform: "Software",
+    // Food & Beverage
+    restaurant: "Food & Beverage", cafe: "Food & Beverage", catering: "Food & Beverage",
+    bakery: "Food & Beverage", food: "Food & Beverage", bar: "Food & Beverage", coffee: "Food & Beverage",
+    // Fitness
+    gym: "Fitness", trainer: "Fitness", yoga: "Fitness", fitness: "Fitness",
+    workout: "Fitness", crossfit: "Fitness", pilates: "Fitness", personal: "Fitness",
+    // Beauty
+    salon: "Beauty", barber: "Beauty", skincare: "Beauty", spa: "Beauty",
+    nail: "Beauty", hair: "Beauty", beauty: "Beauty", cosmetic: "Beauty",
+    // Automotive
+    "car repair": "Automotive", mechanic: "Automotive", detailing: "Automotive", auto: "Automotive",
+    tire: "Automotive", body: "Automotive", collision: "Automotive", dealer: "Automotive",
+    // Education
+    tutoring: "Education", school: "Education", course: "Education", training: "Education",
+    learning: "Education", teaching: "Education", education: "Education",
+    // Travel
+    hotel: "Travel", travel: "Travel", vacation: "Travel", tour: "Travel", flight: "Travel",
+    // E-commerce
+    shop: "E-commerce", store: "E-commerce", ecommerce: "E-commerce", online: "E-commerce", retail: "E-commerce",
+    // Marketing
+    marketing: "Marketing", seo: "Marketing", advertising: "Marketing", agency: "Marketing", digital: "Marketing",
+};
+
+/**
+ * Suggests categories based on intent keywords.
+ * Designed to be swappable for an API/LLM call later.
+ */
+function suggestCategories(intents: string[]): string[] {
+    const scores: Record<string, number> = {};
+
+    const intentText = intents.join(" ").toLowerCase();
+
+    for (const [keyword, category] of Object.entries(KEYWORD_TO_CATEGORY)) {
+        if (intentText.includes(keyword.toLowerCase())) {
+            scores[category] = (scores[category] || 0) + 1;
+        }
+    }
+
+    // Sort by score descending, return top 5
+    return Object.entries(scores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([cat]) => cat);
+}
 
 // ============================================================================
 // TYPES
@@ -133,26 +218,26 @@ export default function PlaygroundPage() {
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-100">
             {/* Header */}
-            <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="text-2xl">🌍</span>
+            <header className="border-b border-zinc-800 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-xl sm:text-2xl">🌍</span>
                     <div>
-                        <h1 className="text-lg font-semibold">GEO API Playground</h1>
-                        <p className="text-xs text-zinc-500">Test your AI visibility</p>
+                        <h1 className="text-base sm:text-lg font-semibold">GEO API Playground</h1>
+                        <p className="text-xs text-zinc-500 hidden sm:block">Test your AI visibility</p>
                     </div>
                 </div>
 
                 {/* Mode Toggle */}
-                <div className="flex items-center gap-2 bg-zinc-900 rounded-lg p-1">
+                <div className="flex items-center gap-1 sm:gap-2 bg-zinc-900 rounded-lg p-1 order-last sm:order-none w-full sm:w-auto justify-center">
                     <button
                         onClick={() => setMode("real")}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === "real" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${mode === "real" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
                     >
                         🚀 Real Test
                     </button>
                     <button
                         onClick={() => setMode("dev")}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${mode === "dev" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white"}`}
+                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${mode === "dev" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white"}`}
                     >
                         🔧 Dev Mode
                     </button>
@@ -171,13 +256,16 @@ export default function PlaygroundPage() {
 // REAL TEST MODE
 // ============================================================================
 
+const OTHER_CUSTOM_VALUE = "__other__";
+
 function RealTestMode() {
     const [formData, setFormData] = useState({
         brandName: "",
         brandDomain: "",
         location: "",
         radiusMiles: "50",
-        category: "",
+        selectedCategory: "", // dropdown value
+        customCategory: "",   // custom input when "Other" selected
         intents: "",
         competitors: "",
         aiSources: "chatgpt,gemini,perplexity",
@@ -197,62 +285,117 @@ function RealTestMode() {
         setFormData((prev) => ({ ...prev, [key]: value }));
     };
 
-    const buildRequestBody = () => ({
-        brand: {
-            name: formData.brandName,
-            domain: formData.brandDomain || null,
-        },
-        market: {
-            location: formData.location,
-            radius_miles: parseInt(formData.radiusMiles) || 50,
-        },
-        category: formData.category,
-        intents: formData.intents
+    // Parse intents for suggestions
+    const parsedIntents = useMemo(() => {
+        return formData.intents
             .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    }, [formData.intents]);
+
+    // Get category suggestions based on intents
+    const categorySuggestions = useMemo(() => {
+        if (parsedIntents.length === 0) return [];
+        return suggestCategories(parsedIntents);
+    }, [parsedIntents]);
+
+    // Handle suggestion click
+    const handleSuggestionClick = (suggestion: string) => {
+        const isInDropdown = CATEGORY_OPTIONS.some((opt) => opt.value === suggestion);
+        if (isInDropdown) {
+            setFormData((prev) => ({ ...prev, selectedCategory: suggestion, customCategory: "" }));
+        } else {
+            setFormData((prev) => ({ ...prev, selectedCategory: OTHER_CUSTOM_VALUE, customCategory: suggestion }));
+        }
+    };
+
+    // Compute final category for submission
+    const getFinalCategory = (): string => {
+        if (formData.selectedCategory === OTHER_CUSTOM_VALUE) {
+            return formData.customCategory.trim();
+        }
+        return formData.selectedCategory;
+    };
+
+    const buildRequestBody = () => {
+        // Parse and clean intents
+        const intents = formData.intents
+            .split("\n")
+            .map((s) => s.trim())
             .filter(Boolean)
-            .map((text) => ({ text: text.trim(), funnel_stage: "awareness" })),
-        competitors: formData.competitors
+            .map((text) => ({ text, funnel_stage: "awareness" }));
+
+        // Parse competitors
+        const competitors = formData.competitors
             .split("\n")
+            .map((s) => s.trim())
             .filter(Boolean)
             .map((line) => {
                 const [name, domain] = line.split(",").map((s) => s.trim());
                 return { name, domain: domain || null };
-            }),
-        ai_sources: formData.aiSources.split(",").map((s) => s.trim()),
-        report_options: {
-            goal: formData.goal,
-            time_horizon_days: parseInt(formData.timeHorizonDays) || 30,
-        },
-    });
+            });
+
+        return {
+            brand: {
+                name: formData.brandName.trim(),
+                domain: formData.brandDomain.trim() || null,
+            },
+            market: {
+                location: formData.location.trim(),
+                radius_miles: parseInt(formData.radiusMiles) || 50,
+            },
+            category: getFinalCategory(),
+            intents,
+            competitors,
+            ai_sources: formData.aiSources.split(",").map((s) => s.trim()),
+            report_options: {
+                goal: formData.goal,
+                time_horizon_days: parseInt(formData.timeHorizonDays) || 30,
+            },
+        };
+    };
 
     const makeRequest = async (url: string, method: string, body?: unknown): Promise<ApiResponse> => {
         const startTime = performance.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
         const options: RequestInit = {
             method,
             headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
         };
         if (body) options.body = JSON.stringify(body);
 
-        const res = await fetch(url, options);
-        const raw = await res.text();
-        const endTime = performance.now();
-
-        let data: unknown;
         try {
-            data = JSON.parse(raw);
-        } catch {
-            data = { _parseError: true, raw };
-        }
+            const res = await fetch(url, options);
+            clearTimeout(timeoutId);
+            const raw = await res.text();
+            const endTime = performance.now();
 
-        return {
-            url,
-            method,
-            status: res.status,
-            statusText: res.statusText,
-            time: Math.round(endTime - startTime),
-            data,
-            raw,
-        };
+            let data: unknown;
+            try {
+                data = JSON.parse(raw);
+            } catch {
+                data = { _parseError: true, raw };
+            }
+
+            return {
+                url,
+                method,
+                status: res.status,
+                statusText: res.statusText,
+                time: Math.round(endTime - startTime),
+                data,
+                raw,
+            };
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err instanceof Error && err.name === "AbortError") {
+                throw new Error("Request timed out after 30 seconds");
+            }
+            throw err;
+        }
     };
 
     const startInsightRun = async () => {
@@ -264,15 +407,30 @@ function RealTestMode() {
 
         try {
             const body = buildRequestBody();
+            console.log("[Playground] Sending request:", JSON.stringify(body, null, 2));
+
             const resp = await makeRequest("/api/v1/geo/insights", "POST", body);
             setResponse(resp);
 
+            console.log("[Playground] Response:", resp.status, resp.data);
+
             if (resp.status >= 400) {
-                setError(`Request failed: ${resp.status} ${resp.statusText}`);
+                // Extract error message from response body if available
+                const errData = resp.data as { error?: string; message?: string };
+                const errMsg = errData?.error || errData?.message || `${resp.status} ${resp.statusText}`;
+                setError(`Request failed: ${errMsg}`);
                 return;
             }
 
             const data = resp.data as InsightRunResponse;
+
+            // Check if the response indicates an immediate failure
+            if (data.status === "failed") {
+                setError(data.error || "Analysis failed");
+                setInsightData(data);
+                return;
+            }
+
             setInsightData(data);
             setRunId(data.run_id);
 
@@ -280,6 +438,7 @@ function RealTestMode() {
                 pollForCompletion(data.run_id);
             }
         } catch (err) {
+            console.error("[Playground] Error:", err);
             setError(err instanceof Error ? err.message : "Request failed");
         } finally {
             setLoading(false);
@@ -329,12 +488,14 @@ function RealTestMode() {
         poll();
     };
 
-    const isValid = formData.brandName && formData.location && formData.category && formData.intents;
+    // Validation: if "Other" selected, customCategory must be filled
+    const finalCategory = getFinalCategory();
+    const isValid = formData.brandName && formData.location && finalCategory && formData.intents;
 
     return (
-        <div className="flex h-[calc(100vh-73px)]">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)]">
             {/* Form Panel */}
-            <div className="w-[480px] border-r border-zinc-800 p-6 overflow-y-auto">
+            <div className="w-full lg:w-[480px] border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto">
                 <h2 className="text-lg font-semibold mb-1">Run AI Visibility Analysis</h2>
                 <p className="text-sm text-zinc-500 mb-6">Enter your brand details to get comprehensive insights</p>
 
@@ -351,7 +512,6 @@ function RealTestMode() {
                         <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Target Market</legend>
                         <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" />
                         <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" />
-                        <FormField label="Business Category" required value={formData.category} onChange={(v) => handleChange("category", v)} placeholder="Software Development" />
                     </fieldset>
 
                     {/* Intents Section */}
@@ -366,6 +526,65 @@ function RealTestMode() {
                             placeholder={"best software development companies\nhire developers near me\ntop tech agencies"}
                             helpText="One search query per line"
                         />
+                    </fieldset>
+
+                    {/* Business Category - below intents so suggestions work */}
+                    <fieldset className="space-y-3">
+                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Business Category</legend>
+                        <div>
+                            <label className="flex items-center gap-1 text-sm font-medium text-zinc-300 mb-1.5">
+                                Category
+                                <span className="text-red-400">*</span>
+                            </label>
+                            <select
+                                value={formData.selectedCategory}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        selectedCategory: val,
+                                        customCategory: val === OTHER_CUSTOM_VALUE ? prev.customCategory : "",
+                                    }));
+                                }}
+                                className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            >
+                                <option value="">Select a category...</option>
+                                {CATEGORY_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                                <option value={OTHER_CUSTOM_VALUE}>Other / Custom</option>
+                            </select>
+
+                            {/* Custom category input */}
+                            {formData.selectedCategory === OTHER_CUSTOM_VALUE && (
+                                <input
+                                    type="text"
+                                    value={formData.customCategory}
+                                    onChange={(e) => handleChange("customCategory", e.target.value)}
+                                    placeholder="Enter custom category..."
+                                    className="w-full mt-2 px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                            )}
+
+                            {/* Category suggestions from intents */}
+                            {categorySuggestions.length > 0 && !formData.selectedCategory && (
+                                <div className="mt-2">
+                                    <p className="text-xs text-zinc-500 mb-1.5">Suggested based on your intents:</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {categorySuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion}
+                                                type="button"
+                                                onClick={() => handleSuggestionClick(suggestion)}
+                                                className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </fieldset>
 
                     {/* Competitors Section */}
@@ -428,34 +647,34 @@ function RealTestMode() {
             </div>
 
             {/* Results Panel */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900/50">
+            <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-0 overflow-hidden bg-zinc-900/50">
                 {/* Tabs */}
-                <div className="border-b border-zinc-800 px-6 flex items-center gap-1">
+                <div className="border-b border-zinc-800 px-4 sm:px-6 flex items-center gap-1 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab("insights")}
-                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "insights" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                        className={`px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "insights" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
                     >
                         📊 Insights
                     </button>
                     <button
                         onClick={() => setActiveTab("raw")}
-                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "raw" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                        className={`px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "raw" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
                     >
                         {"</>"} Raw JSON
                     </button>
                     {response && (
-                        <div className="ml-auto flex items-center gap-3 text-xs">
+                        <div className="ml-auto hidden sm:flex items-center gap-3 text-xs">
                             <span className={response.status < 400 ? "text-green-400" : "text-red-400"}>
                                 {response.status} {response.statusText}
                             </span>
                             <span className="text-zinc-500">{response.time}ms</span>
-                            <span className="text-zinc-600">{response.method} {response.url}</span>
+                            <span className="text-zinc-600 hidden md:inline">{response.method} {response.url}</span>
                         </div>
                     )}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                     {error && (
                         <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
                             <strong>Error:</strong> {error}
@@ -800,48 +1019,50 @@ function DevMode() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-73px)]">
-            {/* Sidebar */}
-            <nav className="w-56 border-r border-zinc-800 p-4 overflow-y-auto">
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Endpoints</p>
-                {ENDPOINT_CATEGORIES.map((cat, i) => (
-                    <button
-                        key={cat.name}
-                        onClick={() => handleCategoryChange(i)}
-                        className={`w-full text-left px-3 py-2 rounded-lg mb-1 transition-colors ${selectedCategory === i ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"}`}
-                    >
-                        <span className="mr-2">{cat.icon}</span>
-                        {cat.name}
-                    </button>
-                ))}
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)]">
+            {/* Sidebar - horizontal scroll on mobile, vertical on desktop */}
+            <nav className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-zinc-800 p-3 lg:p-4 overflow-x-auto lg:overflow-y-auto">
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 lg:mb-3 hidden lg:block">Endpoints</p>
+                <div className="flex lg:flex-col gap-1">
+                    {ENDPOINT_CATEGORIES.map((cat, i) => (
+                        <button
+                            key={cat.name}
+                            onClick={() => handleCategoryChange(i)}
+                            className={`whitespace-nowrap lg:w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedCategory === i ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"}`}
+                        >
+                            <span className="mr-2">{cat.icon}</span>
+                            <span className="hidden sm:inline">{cat.name}</span>
+                        </button>
+                    ))}
+                </div>
             </nav>
 
             {/* Main */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Endpoint tabs */}
-                <div className="border-b border-zinc-800 px-4 flex gap-1 overflow-x-auto">
+                <div className="border-b border-zinc-800 px-3 sm:px-4 flex gap-1 overflow-x-auto">
                     {category.endpoints.map((ep, i) => (
                         <button
                             key={ep.path + ep.method}
                             onClick={() => handleEndpointChange(i)}
-                            className={`px-3 py-3 text-sm flex items-center gap-2 border-b-2 transition-colors ${selectedEndpoint === i ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                            className={`px-2 sm:px-3 py-3 text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border-b-2 transition-colors whitespace-nowrap ${selectedEndpoint === i ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
                         >
                             <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${METHOD_STYLES[ep.method].bg} ${METHOD_STYLES[ep.method].text}`}>{ep.method}</span>
-                            {ep.name}
+                            <span className="hidden sm:inline">{ep.name}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* Request/Response */}
-                <div className="flex-1 grid grid-cols-2 overflow-hidden">
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
                     {/* Request */}
-                    <div className="border-r border-zinc-800 p-6 overflow-y-auto">
+                    <div className="border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto">
                         <h3 className="font-semibold mb-1">{endpoint.name}</h3>
                         <p className="text-sm text-zinc-500 mb-4">{endpoint.description}</p>
 
-                        <div className="bg-zinc-900 rounded-lg p-3 mb-4 flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${METHOD_STYLES[endpoint.method].bg} ${METHOD_STYLES[endpoint.method].text}`}>{endpoint.method}</span>
-                            <code className="text-sm text-zinc-400">{buildUrl()}</code>
+                        <div className="bg-zinc-900 rounded-lg p-3 mb-4 flex items-center gap-2 overflow-x-auto">
+                            <span className={`flex-shrink-0 px-2 py-1 rounded text-xs font-semibold ${METHOD_STYLES[endpoint.method].bg} ${METHOD_STYLES[endpoint.method].text}`}>{endpoint.method}</span>
+                            <code className="text-xs sm:text-sm text-zinc-400 whitespace-nowrap">{buildUrl()}</code>
                         </div>
 
                         <div className="space-y-4">
@@ -864,7 +1085,7 @@ function DevMode() {
                     </div>
 
                     {/* Response */}
-                    <div className="p-6 overflow-y-auto bg-zinc-900/50">
+                    <div className="p-4 sm:p-6 overflow-y-auto bg-zinc-900/50 min-h-[300px] lg:min-h-0">
                         <h3 className="font-semibold mb-4">Response</h3>
                         {response ? (
                             <>
@@ -874,7 +1095,7 @@ function DevMode() {
                                     </span>
                                     <span className="text-sm text-zinc-500">{response.time}ms</span>
                                 </div>
-                                <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 overflow-auto max-h-96 font-mono">
+                                <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-zinc-300 overflow-auto max-h-96 font-mono">
                                     {JSON.stringify(response.data, null, 2)}
                                 </pre>
                             </>

@@ -22,13 +22,138 @@ import {
 } from "./insights-store";
 
 /**
+ * Check if running in mock mode (no Firestore needed)
+ */
+function isMockMode(): boolean {
+    return process.env.MOCK_MODE === "true";
+}
+
+/**
+ * Generate mock result data for testing
+ */
+function generateMockResult(input: InsightRunInput): InsightRunResult {
+    const brandId = `brand_mock_${Date.now()}`;
+    const scanId = `scan_mock_${Date.now()}`;
+
+    return {
+        brand: {
+            id: brandId,
+            name: input.brand.name,
+            domain: input.brand.domain ?? null,
+        },
+        scan: {
+            id: scanId,
+            status: "succeeded",
+            created_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+        },
+        scores: {
+            visibility_score: Math.floor(Math.random() * 40) + 30, // 30-70
+            share_of_voice: Math.random() * 0.3 + 0.1, // 0.1-0.4
+            by_intent: input.intents.map((intent) => ({
+                intent: intent.text,
+                score: Math.floor(Math.random() * 50) + 25,
+                sov: Math.random() * 0.4 + 0.05,
+            })),
+        },
+        mentions: input.intents.flatMap((intent) => [
+            {
+                subject: input.brand.name,
+                provider: "chatgpt",
+                intent_text: intent.text,
+                presence: Math.random() > 0.5 ? "mentioned" : "not_mentioned",
+            },
+            {
+                subject: input.brand.name,
+                provider: "gemini",
+                intent_text: intent.text,
+                presence: Math.random() > 0.6 ? "recommended_top" : "mentioned",
+            },
+        ]),
+        competitors: {
+            winners_by_intent: input.intents.map((intent) => ({
+                intent: intent.text,
+                winners: [
+                    { name: "Competitor A", mention_rate: 0.7 },
+                    { name: "Competitor B", mention_rate: 0.5 },
+                    { name: input.brand.name, mention_rate: 0.3 },
+                ],
+            })),
+        },
+        diagnostics: {
+            gaps: [
+                {
+                    type: "entity_clarity_gap",
+                    severity: "medium",
+                    impact: `${input.brand.name} is not strongly associated with ${input.category}`,
+                    recommended_actions: [
+                        "Create dedicated service pages for each offering",
+                        "Add structured data markup (LocalBusiness schema)",
+                        "Build topical authority through content",
+                    ],
+                },
+                {
+                    type: "citation_gap",
+                    severity: "high",
+                    impact: "Limited third-party citations and reviews",
+                    recommended_actions: [
+                        "Get listed on industry directories",
+                        "Encourage customer reviews on Google",
+                        "Pursue PR mentions and guest posts",
+                    ],
+                },
+            ],
+        },
+        recommendations: {
+            priorities: [
+                {
+                    priority: 1,
+                    action: "Create location-specific landing pages",
+                    why: "Competitors with local pages are getting 2x more mentions",
+                    effort: "medium",
+                },
+                {
+                    priority: 2,
+                    action: "Add FAQ schema to key service pages",
+                    why: "AI models frequently cite FAQ content in responses",
+                    effort: "low",
+                },
+                {
+                    priority: 3,
+                    action: "Build comparison content",
+                    why: "Users searching for comparisons often see competitors first",
+                    effort: "medium",
+                },
+            ],
+        },
+    };
+}
+
+/**
  * Start a new insights run
  * Creates brand (if needed), starts scan, returns run_id for polling
  */
 export async function startInsightRun(input: InsightRunInput): Promise<InsightRun> {
-    // Create the run record
+    // Create the run record (always use in-memory store)
     const run = createRun(input);
 
+    // MOCK MODE: Skip Firestore, return immediately with mock data
+    if (isMockMode()) {
+        console.log("[MOCK MODE] Generating mock insights for:", input.brand.name);
+
+        const mockResult = generateMockResult(input);
+
+        updateRun(run.id, {
+            brand_id: `brand_mock_${Date.now()}`,
+            scan_id: `scan_mock_${Date.now()}`,
+            status: "completed",
+            result: mockResult,
+        });
+
+        return getRun(run.id)!;
+    }
+
+    // REAL MODE: Use Firestore
     try {
         // Step 1: Create or find brand
         const brand = await createBrandService({
