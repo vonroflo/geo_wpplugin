@@ -16,6 +16,11 @@ let _tasksClient: CloudTasksClient | null = null;
 function getTasksClient(): CloudTasksClient {
     if (!_tasksClient) {
         const options: any = {};
+
+        // Pass project ID explicitly if available
+        const projectId = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+        if (projectId) options.projectId = projectId;
+
         const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
         if (serviceAccountJson) {
             try {
