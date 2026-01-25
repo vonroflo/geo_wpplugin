@@ -15,7 +15,16 @@ export type EnqueueTaskArgs = {
 let _tasksClient: CloudTasksClient | null = null;
 function getTasksClient(): CloudTasksClient {
     if (!_tasksClient) {
-        _tasksClient = new CloudTasksClient();
+        const options: any = {};
+        const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+        if (serviceAccountJson) {
+            try {
+                options.credentials = JSON.parse(serviceAccountJson);
+            } catch {
+                throw new Error("Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON: must be valid JSON");
+            }
+        }
+        _tasksClient = new CloudTasksClient(options);
     }
     return _tasksClient;
 }
