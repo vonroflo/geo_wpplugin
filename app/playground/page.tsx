@@ -415,9 +415,9 @@ function RealTestMode() {
             console.log("[Playground] Response:", resp.status, resp.data);
 
             if (resp.status >= 400) {
-                // Extract error message from response body if available
-                const errData = resp.data as { error?: string; message?: string };
-                const errMsg = errData?.error || errData?.message || `${resp.status} ${resp.statusText}`;
+                // Extract error message from structured response { error: { message: "..." } }
+                const errData = resp.data as any;
+                const errMsg = errData?.error?.message || errData?.error || errData?.message || `${resp.status} ${resp.statusText}`;
                 setError(`Request failed: ${errMsg}`);
                 return;
             }

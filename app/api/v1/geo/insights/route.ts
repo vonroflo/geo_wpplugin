@@ -8,7 +8,10 @@ import { validateResponse } from "@/lib/validators";
 
 export async function POST(req: Request) {
     const b = await parseBody(req, InsightsRequestZ);
-    if (!b.ok) return b.response;
+    if (!b.ok) {
+        console.error("[POST /api/v1/geo/insights] Validation failed:", JSON.stringify(b.response, null, 2));
+        return b.response;
+    }
 
     try {
         const run = await startInsightRun(b.data);
@@ -28,6 +31,7 @@ export async function POST(req: Request) {
 
         return created(v.data);
     } catch (err) {
+        console.error("[POST /api/v1/geo/insights] Error:", err);
         const message = err instanceof Error ? err.message : "Failed to start insight run";
         return badRequest(message);
     }

@@ -161,6 +161,7 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
             domain: input.brand.domain ?? undefined,
             aliases: input.brand.aliases ?? [],
         });
+        console.log("[startInsightRun] Brand resolved:", brand.id);
 
         await updateRun(run.id, { brand_id: brand.id });
 
@@ -183,11 +184,13 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
                 "perplexity",
             ],
         });
+        console.log("[startInsightRun] Scan service created:", scanResult.scan_id);
 
         await updateRun(run.id, { scan_id: scanResult.scan_id });
 
         return (await getRun(run.id))!;
     } catch (err) {
+        console.error("[startInsightRun] Error:", err);
         const errorMessage = err instanceof Error ? err.message : "Unknown error starting insight run";
         await updateRun(run.id, {
             status: "failed",
