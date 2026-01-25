@@ -227,19 +227,28 @@ export default function PlaygroundPage() {
 
     // Save theme and apply class to root element
     useEffect(() => {
-        const root = window.document.documentElement;
-        if (theme === "dark") {
-            root.classList.add("dark");
-        } else {
-            root.classList.remove("dark");
+        try {
+            const root = document.documentElement;
+            if (theme === "dark") {
+                root.classList.add("dark");
+                root.style.colorScheme = "dark";
+            } else {
+                root.classList.remove("dark");
+                root.style.colorScheme = "light";
+            }
+            localStorage.setItem("playground_theme", theme);
+            console.log("[Theme] Applied:", theme);
+        } catch (e) {
+            console.error("[Theme] Error applying theme:", e);
         }
-        localStorage.setItem("playground_theme", theme);
     }, [theme]);
 
-    const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+    const toggleTheme = () => {
+        setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    };
 
     return (
-        <div className="min-h-screen transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950">
+        <div className={`min-h-screen transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950 ${theme}`}>
             <div className="min-h-screen text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
                 {/* Header */}
                 <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
