@@ -215,40 +215,69 @@ const METHOD_STYLES: Record<string, { bg: string; text: string }> = {
 
 export default function PlaygroundPage() {
     const [mode, setMode] = useState<PlaygroundMode>("real");
+    const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+    // Load theme from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem("playground_theme");
+        if (saved === "light" || saved === "dark") {
+            setTheme(saved);
+        }
+    }, []);
+
+    // Save theme and apply class
+    useEffect(() => {
+        localStorage.setItem("playground_theme", theme);
+    }, [theme]);
+
+    const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100">
-            {/* Header */}
-            <header className="border-b border-zinc-800 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 sm:gap-3">
-                    <span className="text-xl sm:text-2xl">🌍</span>
-                    <div>
-                        <h1 className="text-base sm:text-lg font-semibold">GEO API Playground</h1>
-                        <p className="text-xs text-zinc-500 hidden sm:block">Test your AI visibility</p>
+        <div className={`${theme} min-h-screen transition-colors duration-300`}>
+            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
+                {/* Header */}
+                <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">🌍</span>
+                        <div>
+                            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">GEO API Playground</h1>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">Test your AI visibility</p>
+                        </div>
                     </div>
-                </div>
 
-                {/* Mode Toggle */}
-                <div className="flex items-center gap-1 sm:gap-2 bg-zinc-900 rounded-lg p-1 order-last sm:order-none w-full sm:w-auto justify-center">
-                    <button
-                        onClick={() => setMode("real")}
-                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${mode === "real" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
-                    >
-                        🚀 Real Test
-                    </button>
-                    <button
-                        onClick={() => setMode("dev")}
-                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${mode === "dev" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white"}`}
-                    >
-                        🔧 Dev Mode
-                    </button>
-                </div>
+                    <div className="flex items-center gap-3 order-last sm:order-none w-full sm:w-auto">
+                        {/* Theme Toggle */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 transition-all shadow-sm"
+                            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                        >
+                            {theme === "dark" ? "☀️" : "🌙"}
+                        </button>
 
-                <a href="/" className="text-sm text-zinc-500 hover:text-white">← Home</a>
-            </header>
+                        {/* Mode Toggle */}
+                        <div className="flex-1 sm:flex-none flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-800 shadow-inner">
+                            <button
+                                onClick={() => setMode("real")}
+                                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${mode === "real" ? "bg-white dark:bg-zinc-800 text-blue-600 dark:text-white shadow-sm" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}`}
+                            >
+                                🚀 Real Test
+                            </button>
+                            <button
+                                onClick={() => setMode("dev")}
+                                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${mode === "dev" ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}`}
+                            >
+                                🔧 Dev Mode
+                            </button>
+                        </div>
+                    </div>
 
-            {/* Content */}
-            {mode === "real" ? <RealTestMode /> : <DevMode />}
+                    <a href="/" className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">← Home</a>
+                </header>
+
+                {/* Content */}
+                {mode === "real" ? <RealTestMode /> : <DevMode />}
+            </div>
         </div>
     );
 }
@@ -580,30 +609,30 @@ function RealTestMode() {
     const isValid = formData.brandName && formData.location && finalCategory && formData.intents;
 
     return (
-        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)] overflow-hidden">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)] overflow-hidden bg-white dark:bg-zinc-950">
             {/* Form Panel */}
-            <div className="w-full lg:w-[480px] border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto lg:max-h-full">
-                <h2 className="text-lg font-semibold mb-1">Run AI Visibility Analysis</h2>
-                <p className="text-sm text-zinc-500 mb-6">Enter your brand details to get comprehensive insights</p>
+            <div className="w-full lg:w-[480px] border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 overflow-y-auto lg:max-h-full">
+                <h2 className="text-lg font-bold tracking-tight mb-1 text-zinc-900 dark:text-zinc-100">Run AI Visibility Analysis</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Enter your brand details to get comprehensive insights</p>
 
                 <div className="space-y-5">
                     {/* Brand Section */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Brand Information</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Brand Information</legend>
                         <FormField label="Brand Name" required value={formData.brandName} onChange={(v) => handleChange("brandName", v)} placeholder="Acme Corp" error={formErrors.brandName} />
                         <FormField label="Website Domain" value={formData.brandDomain} onChange={(v) => handleChange("brandDomain", v)} placeholder="acme.com" helpText="Optional - helps with attribution" error={formErrors.brandDomain} />
                     </fieldset>
 
                     {/* Market Section */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Target Market</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Target Market</legend>
                         <FormField label="Location" required value={formData.location} onChange={(v) => handleChange("location", v)} placeholder="Austin, TX" helpText="City, State format" error={formErrors.location} />
                         <FormField label="Radius (miles)" value={formData.radiusMiles} onChange={(v) => handleChange("radiusMiles", v)} type="number" placeholder="50" error={formErrors.radiusMiles} />
                     </fieldset>
 
                     {/* Intents Section */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Search Intents</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Search Intents</legend>
                         <FormField
                             label="What would customers search?"
                             required
@@ -618,9 +647,9 @@ function RealTestMode() {
 
                     {/* Business Category - below intents so suggestions work */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Business Category</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Business Category</legend>
                         <div>
-                            <label className="flex items-center gap-1 text-sm font-medium text-zinc-300 mb-1.5">
+                            <label className="flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                                 Category
                                 <span className="text-red-400">*</span>
                             </label>
@@ -634,7 +663,7 @@ function RealTestMode() {
                                         customCategory: val === OTHER_CUSTOM_VALUE ? prev.customCategory : "",
                                     }));
                                 }}
-                                className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                className="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             >
                                 <option value="">Select a category...</option>
                                 {CATEGORY_OPTIONS.map((opt) => (
@@ -650,7 +679,7 @@ function RealTestMode() {
                                     value={formData.customCategory}
                                     onChange={(e) => handleChange("customCategory", e.target.value)}
                                     placeholder="Enter custom category..."
-                                    className="w-full mt-2 px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    className="w-full mt-2 px-3 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             )}
 
@@ -679,7 +708,7 @@ function RealTestMode() {
 
                     {/* Competitors Section */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Competitors (Optional)</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Competitors (Optional)</legend>
                         <FormField
                             label="Competitor Names"
                             value={formData.competitors}
@@ -692,7 +721,7 @@ function RealTestMode() {
 
                     {/* Options Section */}
                     <fieldset className="space-y-3">
-                        <legend className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Analysis Options</legend>
+                        <legend className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Analysis Options</legend>
                         <FormField
                             label="AI Sources"
                             value={formData.aiSources}
@@ -749,28 +778,27 @@ function RealTestMode() {
             </div>
 
             {/* Results Panel */}
-            <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-0 overflow-hidden bg-zinc-900/50">
+            <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-0 overflow-hidden bg-zinc-50 dark:bg-zinc-900/50">
                 {/* Tabs */}
-                <div className="border-b border-zinc-800 px-4 sm:px-6 flex items-center gap-1 overflow-x-auto">
+                <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-transparent px-4 sm:px-6 flex items-center gap-1 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab("insights")}
-                        className={`px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "insights" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                        className={`px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${activeTab === "insights" ? "border-blue-500 text-blue-600 dark:text-white" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-white"}`}
                     >
                         📊 Insights
                     </button>
                     <button
                         onClick={() => setActiveTab("raw")}
-                        className={`px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "raw" ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                        className={`px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${activeTab === "raw" ? "border-blue-500 text-blue-600 dark:text-white" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-white"}`}
                     >
                         {"</>"} Raw JSON
                     </button>
                     {response && (
-                        <div className="ml-auto hidden sm:flex items-center gap-3 text-xs">
-                            <span className={response.status < 400 ? "text-green-400" : "text-red-400"}>
+                        <div className="ml-auto hidden sm:flex items-center gap-3 text-xs font-medium">
+                            <span className={response.status < 400 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}>
                                 {response.status} {response.statusText}
                             </span>
-                            <span className="text-zinc-500">{response.time}ms</span>
-                            <span className="text-zinc-600 hidden md:inline">{response.method} {response.url}</span>
+                            <span className="text-zinc-400 dark:text-zinc-500">{response.time}ms</span>
                         </div>
                     )}
                 </div>
@@ -1015,10 +1043,10 @@ function InsightCard({ title, children, icon }: { title: string; icon: string; c
     };
 
     return (
-        <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden shadow-sm backdrop-blur-sm">
-            <div className="px-5 py-4 border-b border-zinc-800/60 flex items-center gap-2.5">
+        <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl overflow-hidden shadow-sm backdrop-blur-sm">
+            <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center gap-2.5 bg-zinc-50/50 dark:bg-transparent">
                 <span className="text-base">{iconMap[icon] || "✨"}</span>
-                <h4 className="text-sm font-bold text-zinc-200 tracking-tight uppercase">{title}</h4>
+                <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 tracking-tight uppercase">{title}</h4>
             </div>
             <div className="p-5">
                 {children}
@@ -1030,11 +1058,11 @@ function InsightCard({ title, children, icon }: { title: string; icon: string; c
 function ScoreBox({ label, value, max, suffix = "" }: { label: string; value: number; max: number; suffix?: string }) {
     const pct = Math.min(100, (value / max) * 100);
     return (
-        <div className="bg-zinc-800 rounded-lg p-4">
-            <p className="text-xs text-zinc-500 mb-1">{label}</p>
-            <p className="text-2xl font-bold text-white">{value}{suffix}</p>
-            <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700/50">
+            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">{label}</p>
+            <p className="text-2xl font-bold text-zinc-900 dark:text-white">{value}{suffix}</p>
+            <div className="mt-2 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
             </div>
         </div>
     );
@@ -1050,16 +1078,22 @@ function RawJsonDisplay({ response }: { response: ApiResponse }) {
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-3">
-                <div className="text-xs text-zinc-500">
-                    {response.method} {response.url} • {response.status} • {response.time}ms
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="text-xs font-mono text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">{response.method}</span>
+                    <span>{response.url}</span>
+                    <span className="mx-1 opacity-30">•</span>
+                    <span className={response.status < 400 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}>{response.status}</span>
                 </div>
-                <button onClick={copy} className="text-xs px-3 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white">
-                    {copied ? "✓ Copied" : "📋 Copy"}
+                <button
+                    onClick={copy}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 transition-all shadow-sm"
+                >
+                    {copied ? "✓ Copied" : "📋 Copy JSON"}
                 </button>
             </div>
-            <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 overflow-auto max-h-[600px] font-mono">
+            <pre className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-zinc-700 dark:text-zinc-300 overflow-auto max-h-[600px] font-mono shadow-inner">
                 {JSON.stringify(response.data, null, 2)}
             </pre>
         </div>
@@ -1091,11 +1125,11 @@ function FormField({
     options?: { value: string; label: string }[];
     error?: string;
 }) {
-    const baseClass = `w-full px-3 py-2.5 bg-zinc-900 border ${error ? 'border-red-500' : 'border-zinc-700'} rounded-lg text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`;
+    const baseClass = `w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border ${error ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-700'} rounded-lg text-zinc-900 dark:text-zinc-100 text-sm placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-all`;
 
     return (
         <div>
-            <label className="flex items-center gap-1 text-sm font-medium text-zinc-300 mb-1.5">
+            <label className="flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 {label}
                 {required && <span className="text-red-400">*</span>}
             </label>
@@ -1114,9 +1148,9 @@ function FormField({
             {/* Stable area for error/help text to prevent shifting */}
             <div className="min-h-[1.25rem] mt-1">
                 {error ? (
-                    <p className="text-xs text-red-400">{error}</p>
+                    <p className="text-xs font-medium text-red-500 dark:text-red-400">{error}</p>
                 ) : helpText ? (
-                    <p className="text-xs text-zinc-500">{helpText}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{helpText}</p>
                 ) : null}
             </div>
         </div>
@@ -1202,36 +1236,36 @@ function DevMode() {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)]">
+        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-73px)] bg-white dark:bg-zinc-950">
             {/* Sidebar - horizontal scroll on mobile, vertical on desktop */}
-            <nav className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-zinc-800 p-3 lg:p-4 overflow-x-auto lg:overflow-y-auto">
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 lg:mb-3 hidden lg:block">Endpoints</p>
+            <nav className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 p-3 lg:p-4 overflow-x-auto lg:overflow-y-auto bg-zinc-50/50 dark:bg-transparent">
+                <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2 lg:mb-3 hidden lg:block">Endpoints</p>
                 <div className="flex lg:flex-col gap-1">
                     {ENDPOINT_CATEGORIES.map((cat, i) => (
                         <button
                             key={cat.name}
                             onClick={() => handleCategoryChange(i)}
-                            className={`whitespace-nowrap lg:w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedCategory === i ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"}`}
+                            className={`whitespace-nowrap lg:w-full text-left px-3 py-2 rounded-lg transition-all ${selectedCategory === i ? "bg-white dark:bg-zinc-800 text-blue-600 dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/50"}`}
                         >
                             <span className="mr-2">{cat.icon}</span>
-                            <span className="hidden sm:inline">{cat.name}</span>
+                            <span className="text-sm font-medium">{cat.name}</span>
                         </button>
                     ))}
                 </div>
             </nav>
 
             {/* Main */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-900/50">
                 {/* Endpoint tabs */}
-                <div className="border-b border-zinc-800 px-3 sm:px-4 flex gap-1 overflow-x-auto">
+                <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-transparent px-3 sm:px-4 flex gap-1 overflow-x-auto">
                     {category.endpoints.map((ep, i) => (
                         <button
                             key={ep.path + ep.method}
                             onClick={() => handleEndpointChange(i)}
-                            className={`px-2 sm:px-3 py-3 text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border-b-2 transition-colors whitespace-nowrap ${selectedEndpoint === i ? "border-blue-500 text-white" : "border-transparent text-zinc-500 hover:text-white"}`}
+                            className={`px-2 sm:px-3 py-3 text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border-b-2 transition-all whitespace-nowrap ${selectedEndpoint === i ? "border-blue-500 text-blue-600 dark:text-white" : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-white"}`}
                         >
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${METHOD_STYLES[ep.method].bg} ${METHOD_STYLES[ep.method].text}`}>{ep.method}</span>
-                            <span className="hidden sm:inline">{ep.name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-tight ${METHOD_STYLES[ep.method].bg} ${METHOD_STYLES[ep.method].text}`}>{ep.method}</span>
+                            <span className="font-semibold">{ep.name}</span>
                         </button>
                     ))}
                 </div>
@@ -1239,16 +1273,16 @@ function DevMode() {
                 {/* Request/Response */}
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
                     {/* Request */}
-                    <div className="border-b lg:border-b-0 lg:border-r border-zinc-800 p-4 sm:p-6 overflow-y-auto">
-                        <h3 className="font-semibold mb-1">{endpoint.name}</h3>
-                        <p className="text-sm text-zinc-500 mb-4">{endpoint.description}</p>
+                    <div className="border-b lg:border-b-0 lg:border-r border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 overflow-y-auto bg-white dark:bg-transparent">
+                        <h3 className="font-bold text-zinc-900 dark:text-white mb-1">{endpoint.name}</h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{endpoint.description}</p>
 
-                        <div className="bg-zinc-900 rounded-lg p-3 mb-4 flex items-center gap-2 overflow-x-auto">
-                            <span className={`flex-shrink-0 px-2 py-1 rounded text-xs font-semibold ${METHOD_STYLES[endpoint.method].bg} ${METHOD_STYLES[endpoint.method].text}`}>{endpoint.method}</span>
-                            <code className="text-xs sm:text-sm text-zinc-400 whitespace-nowrap">{buildUrl()}</code>
+                        <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-xl p-3 mb-6 flex items-center gap-2 overflow-x-auto shadow-inner">
+                            <span className={`flex-shrink-0 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-tight ${METHOD_STYLES[endpoint.method].bg} ${METHOD_STYLES[endpoint.method].text}`}>{endpoint.method}</span>
+                            <code className="text-xs sm:text-sm font-mono text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{buildUrl()}</code>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             {endpoint.fields?.map((f) => (
                                 <FormField key={f.key} label={f.label} value={formData[f.key] || ""} onChange={(v) => setFormData((p) => ({ ...p, [f.key]: v }))} required={f.required} placeholder={f.placeholder} />
                             ))}
@@ -1257,35 +1291,35 @@ function DevMode() {
                             ))}
                         </div>
 
-                        <button onClick={handleSubmit} disabled={loading} className={`w-full mt-6 py-3 rounded-lg font-semibold text-white ${loading ? "bg-zinc-700" : "bg-blue-600 hover:bg-blue-500"}`}>
-                            {loading ? "Sending..." : "Send Request"}
+                        <button onClick={handleSubmit} disabled={loading} className={`w-full mt-8 py-3 rounded-xl font-bold text-white transition-all shadow-lg shadow-blue-500/20 ${loading ? "bg-zinc-300 dark:bg-zinc-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 hover:-translate-y-0.5 active:translate-y-0"}`}>
+                            {loading ? "🚀 Sending..." : "Send Request"}
                         </button>
 
-                        <div className="mt-4">
-                            <p className="text-xs text-zinc-500 mb-1">cURL</p>
-                            <pre className="bg-zinc-900 rounded p-2 text-xs text-zinc-400 overflow-x-auto">{generateCurl()}</pre>
+                        <div className="mt-8">
+                            <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2 text-center">cURL Command</p>
+                            <pre className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-xl p-3 text-xs font-mono text-zinc-600 dark:text-zinc-400 overflow-x-auto shadow-inner">{generateCurl()}</pre>
                         </div>
                     </div>
 
                     {/* Response */}
-                    <div className="p-4 sm:p-6 overflow-y-auto bg-zinc-900/50 min-h-[300px] lg:min-h-0">
-                        <h3 className="font-semibold mb-4">Response</h3>
+                    <div className="p-4 sm:p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-900/50 min-h-[300px] lg:min-h-0">
+                        <h3 className="font-bold text-zinc-900 dark:text-white mb-4 uppercase text-xs tracking-widest pl-1">Response</h3>
                         {response ? (
-                            <>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <span className={`px-2 py-1 rounded text-sm font-semibold ${response.status < 400 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-2 py-1 rounded-lg text-sm font-bold shadow-sm ${response.status < 400 ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"}`}>
                                         {response.status} {response.statusText}
                                     </span>
-                                    <span className="text-sm text-zinc-500">{response.time}ms</span>
+                                    <span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">{response.time}ms</span>
                                 </div>
-                                <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-zinc-300 overflow-auto max-h-96 font-mono">
+                                <pre className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 overflow-auto max-h-[500px] font-mono shadow-inner">
                                     {JSON.stringify(response.data, null, 2)}
                                 </pre>
-                            </>
+                            </div>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-48 text-zinc-600">
-                                <span className="text-3xl mb-2">📬</span>
-                                <p>Send a request to see the response</p>
+                            <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-zinc-400 dark:text-zinc-600">
+                                <span className="text-5xl mb-4 opacity-50">📬</span>
+                                <p className="font-medium tracking-tight">Send a request to see the response</p>
                             </div>
                         )}
                     </div>
