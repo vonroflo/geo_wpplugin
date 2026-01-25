@@ -415,10 +415,19 @@ function RealTestMode() {
             console.log("[Playground] Response:", resp.status, resp.data);
 
             if (resp.status >= 400) {
-                // Extract error message from structured response { error: { message: "..." } }
+                // Extract error message from structured response { error: { message: "...", details: ... } }
                 const errData = resp.data as any;
-                const errMsg = errData?.error?.message || errData?.error || errData?.message || `${resp.status} ${resp.statusText}`;
-                setError(`Request failed: ${errMsg}`);
+                let message = errData?.error?.message || errData?.message || `${resp.status} ${resp.statusText}`;
+
+                // If there are validation details, append them
+                if (errData?.error?.details?.issues) {
+                    const issues = errData.error.details.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join(', ');
+                    message += ` (${issues})`;
+                } else if (typeof errData?.error === 'object' && !errData?.error?.message) {
+                    message = JSON.stringify(errData.error);
+                }
+
+                setError(`Request failed: ${message}`);
                 return;
             }
 
