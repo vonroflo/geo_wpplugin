@@ -1,6 +1,6 @@
-// /lib/insights-store.ts
-// DEV-ONLY: In-memory store for insight runs
-// In production, use Redis/Firestore for persistence across instances
+import { getFirestore } from "./gcp/firestore";
+
+const COLLECTION = "insight_runs";
 
 export type InsightRunStatus = "processing" | "completed" | "failed";
 
@@ -98,33 +98,9 @@ export type InsightRun = {
     poll_count: number;
 };
 
-// DEV-ONLY: In-memory Map with globalThis to survive hot reloads
-// WARNING: This will be lost on server restart and doesn't work with multiple instances
-const globalForStore = globalThis as unknown as {
-    _insightRunStore: Map<string, InsightRun> | undefined;
-};
 
-if (!globalForStore._insightRunStore) {
-    globalForStore._insightRunStore = new Map<string, InsightRun>();
-}
-
-const runStore = globalForStore._insightRunStore;
-
-// Cleanup old runs after 1 hour (dev convenience)
-const RUN_TTL_MS = 60 * 60 * 1000;
-
-function cleanupOldRuns() {
-    const now = Date.now();
-    for (const [id, run] of runStore.entries()) {
-        if (now - new Date(run.created_at).getTime() > RUN_TTL_MS) {
-            runStore.delete(id);
-        }
-    }
-}
-
-export function createRun(input: InsightRunInput): InsightRun {
-    cleanupOldRuns();
-
+export async function createRun(input: InsightRunInput): Promise<InsightRun> {
+    const db = getFirestore();
     const id = `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
 
@@ -139,32 +115,40 @@ export function createRun(input: InsightRunInput): InsightRun {
         poll_count: 0,
     };
 
-    runStore.set(id, run);
+    await db.collection(COLLECTION).doc(id).set(run);
     return run;
 }
 
-export function getRun(id: string): InsightRun | null {
-    return runStore.get(id) || null;
+export async function getRun(id: string): Promise<InsightRun | null> {
+    const db = getFirestore();
+    const snap = await db.collection(COLLECTION).doc(id).get();
+    if (!snap.exists) return null;
+    return snap.data() as InsightRun;
 }
 
-export function updateRun(id: string, updates: Partial<InsightRun>): InsightRun | null {
-    const run = runStore.get(id);
-    if (!run) return null;
+export async function updateRun(id: string, updates: Partial<InsightRun>): Promise<InsightRun | null> {
+    const db = getFirestore();
+    const ref = db.collection(COLLECTION).doc(id);
 
-    const updated = {
-        ...run,
+    const updatesWithTimestamp = {
         ...updates,
         updated_at: new Date().toISOString(),
     };
-    runStore.set(id, updated);
-    return updated;
+
+    await ref.update(updatesWithTimestamp);
+    const snap = await ref.get();
+    return snap.data() as InsightRun;
 }
 
-export function deleteRun(id: string): boolean {
-    return runStore.delete(id);
+export async function deleteRun(id: string): Promise<boolean> {
+    const db = getFirestore();
+    await db.collection(COLLECTION).doc(id).delete();
+    return true;
 }
 
 // For debugging
-export function getAllRuns(): InsightRun[] {
-    return Array.from(runStore.values());
+export async function getAllRuns(): Promise<InsightRun[]> {
+    const db = getFirestore();
+    const snap = await db.collection(COLLECTION).orderBy("created_at", "desc").limit(50).get();
+    return snap.docs.map(d => d.data() as InsightRun);
 }

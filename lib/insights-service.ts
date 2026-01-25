@@ -135,7 +135,7 @@ function generateMockResult(input: InsightRunInput): InsightRunResult {
  */
 export async function startInsightRun(input: InsightRunInput): Promise<InsightRun> {
     // Create the run record (always use in-memory store)
-    const run = createRun(input);
+    const run = await createRun(input);
 
     // MOCK MODE: Skip Firestore, return immediately with mock data
     if (isMockMode()) {
@@ -143,14 +143,14 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
 
         const mockResult = generateMockResult(input);
 
-        updateRun(run.id, {
+        await updateRun(run.id, {
             brand_id: `brand_mock_${Date.now()}`,
             scan_id: `scan_mock_${Date.now()}`,
             status: "completed",
             result: mockResult,
         });
 
-        return getRun(run.id)!;
+        return (await getRun(run.id))!;
     }
 
     // REAL MODE: Use Firestore
@@ -162,7 +162,7 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
             aliases: input.brand.aliases ?? [],
         });
 
-        updateRun(run.id, { brand_id: brand.id });
+        await updateRun(run.id, { brand_id: brand.id });
 
         // Step 2: Start scan (this is async - enqueues to Cloud Tasks)
         const scanResult = await createScanService({
@@ -184,16 +184,16 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
             ],
         });
 
-        updateRun(run.id, { scan_id: scanResult.scan_id });
+        await updateRun(run.id, { scan_id: scanResult.scan_id });
 
-        return getRun(run.id)!;
+        return (await getRun(run.id))!;
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error starting insight run";
-        updateRun(run.id, {
+        await updateRun(run.id, {
             status: "failed",
             error: errorMessage,
         });
-        return getRun(run.id)!;
+        return (await getRun(run.id))!;
     }
 }
 
@@ -202,7 +202,7 @@ export async function startInsightRun(input: InsightRunInput): Promise<InsightRu
  * Call this to poll for completion
  */
 export async function getInsightRunStatus(runId: string): Promise<InsightRun | null> {
-    const run = getRun(runId);
+    const run = await getRun(runId);
     if (!run) return null;
 
     // Already completed or failed - return cached result
@@ -211,56 +211,56 @@ export async function getInsightRunStatus(runId: string): Promise<InsightRun | n
     }
 
     // Increment poll count
-    updateRun(runId, { poll_count: run.poll_count + 1 });
+    await updateRun(runId, { poll_count: run.poll_count + 1 });
 
     // No scan_id yet - still initializing
     if (!run.scan_id) {
-        return getRun(runId);
+        return await getRun(runId);
     }
 
     try {
         // Check scan status
         const scan = await getScanService(run.scan_id);
         if (!scan) {
-            updateRun(runId, {
+            await updateRun(runId, {
                 status: "failed",
                 error: "Scan not found",
             });
-            return getRun(runId);
+            return await getRun(runId);
         }
 
         // Scan still running
         if (scan.status === "queued" || scan.status === "running") {
-            return getRun(runId);
+            return await getRun(runId);
         }
 
         // Scan failed
         if (scan.status === "failed" || scan.status === "canceled") {
-            updateRun(runId, {
+            await updateRun(runId, {
                 status: "failed",
                 error: scan.error || "Scan failed",
             });
-            return getRun(runId);
+            return await getRun(runId);
         }
 
         // Scan completed - gather all insights
         if (scan.status === "succeeded") {
             const result = await gatherInsights(run, scan);
-            updateRun(runId, {
+            await updateRun(runId, {
                 status: "completed",
                 result,
             });
-            return getRun(runId);
+            return await getRun(runId);
         }
 
-        return getRun(runId);
+        return await getRun(runId);
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Error checking run status";
-        updateRun(runId, {
+        await updateRun(runId, {
             status: "failed",
             error: errorMessage,
         });
-        return getRun(runId);
+        return await getRun(runId);
     }
 }
 
@@ -296,14 +296,14 @@ async function gatherInsights(run: InsightRun, scan: Awaited<ReturnType<typeof g
         },
         scores: scores
             ? {
-                  visibility_score: scores.visibility_score,
-                  share_of_voice: scores.share_of_voice,
-                  by_intent: scores.by_intent.map((i) => ({
-                      intent: i.intent,
-                      score: i.score,
-                      sov: i.sov,
-                  })),
-              }
+                visibility_score: scores.visibility_score,
+                share_of_voice: scores.share_of_voice,
+                by_intent: scores.by_intent.map((i) => ({
+                    intent: i.intent,
+                    score: i.score,
+                    sov: i.sov,
+                })),
+            }
             : null,
         mentions: scan.mentions.map((m) => ({
             subject: m.subject,
@@ -313,34 +313,34 @@ async function gatherInsights(run: InsightRun, scan: Awaited<ReturnType<typeof g
         })),
         competitors: competitors
             ? {
-                  winners_by_intent: competitors.winners_by_intent.map((w) => ({
-                      intent: w.intent,
-                      winners: w.winners.map((win) => ({
-                          name: win.name,
-                          mention_rate: win.mention_rate,
-                      })),
-                  })),
-              }
+                winners_by_intent: competitors.winners_by_intent.map((w) => ({
+                    intent: w.intent,
+                    winners: w.winners.map((win) => ({
+                        name: win.name,
+                        mention_rate: win.mention_rate,
+                    })),
+                })),
+            }
             : null,
         diagnostics: diagnostics
             ? {
-                  gaps: diagnostics.gaps.map((g) => ({
-                      type: g.type,
-                      severity: g.severity,
-                      impact: g.impact,
-                      recommended_actions: g.recommended_actions,
-                  })),
-              }
+                gaps: diagnostics.gaps.map((g) => ({
+                    type: g.type,
+                    severity: g.severity,
+                    impact: g.impact,
+                    recommended_actions: g.recommended_actions,
+                })),
+            }
             : null,
         recommendations: recommendations
             ? {
-                  priorities: recommendations.priorities.map((p) => ({
-                      priority: p.priority,
-                      action: p.action,
-                      why: p.why,
-                      effort: p.effort,
-                  })),
-              }
+                priorities: recommendations.priorities.map((p) => ({
+                    priority: p.priority,
+                    action: p.action,
+                    why: p.why,
+                    effort: p.effort,
+                })),
+            }
             : null,
     };
 }

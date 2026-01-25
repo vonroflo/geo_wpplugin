@@ -24,6 +24,7 @@ function getTasksClient(): CloudTasksClient {
  * Check if running in local dev mode (Firestore emulator)
  */
 function isLocalDev(): boolean {
+    if (process.env.NODE_ENV === "production") return false;
     return !!process.env.FIRESTORE_EMULATOR_HOST;
 }
 

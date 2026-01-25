@@ -12,6 +12,7 @@ const globalForFirebase = globalThis as unknown as {
 };
 
 function isEmulatorMode(): boolean {
+    if (process.env.NODE_ENV === "production") return false;
     return !!process.env.FIRESTORE_EMULATOR_HOST;
 }
 
