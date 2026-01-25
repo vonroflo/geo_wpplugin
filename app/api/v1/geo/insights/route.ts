@@ -7,6 +7,15 @@ import { startInsightRun } from "@/lib/insights-service";
 import { validateResponse } from "@/lib/validators";
 
 export async function POST(req: Request) {
+    // Log raw body for debugging
+    const clonedReq = req.clone();
+    try {
+        const rawBody = await clonedReq.json();
+        console.log("[POST /api/v1/geo/insights] Request Body:", JSON.stringify(rawBody, null, 2));
+    } catch (e) {
+        console.log("[POST /api/v1/geo/insights] Could not parse raw body for logging");
+    }
+
     const b = await parseBody(req, InsightsRequestZ);
     if (!b.ok) {
         console.error("[POST /api/v1/geo/insights] Validation failed:", JSON.stringify(b.response, null, 2));

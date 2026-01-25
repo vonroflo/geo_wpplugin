@@ -417,14 +417,29 @@ function RealTestMode() {
             if (resp.status >= 400) {
                 // Extract error message from structured response { error: { message: "...", details: ... } }
                 const errData = resp.data as any;
-                let message = errData?.error?.message || errData?.message || `${resp.status} ${resp.statusText}`;
+                let message = "";
+
+                if (errData?.error?.message) {
+                    message = errData.error.message;
+                } else if (errData?.message) {
+                    message = errData.message;
+                } else if (typeof errData?.error === 'string') {
+                    message = errData.error;
+                } else if (typeof errData === 'string') {
+                    message = errData;
+                } else {
+                    message = `${resp.status} ${resp.statusText}`;
+                }
 
                 // If there are validation details, append them
                 if (errData?.error?.details?.issues) {
                     const issues = errData.error.details.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join(', ');
-                    message += ` (${issues})`;
-                } else if (typeof errData?.error === 'object' && !errData?.error?.message) {
-                    message = JSON.stringify(errData.error);
+                    message += ` (Validation: ${issues})`;
+                } else if (typeof errData?.error === 'object' && errData?.error !== null) {
+                    // Final fallback to stringify the object if we still don't have a good message
+                    if (message.includes(resp.statusText) || message === `${resp.status} ${resp.statusText}`) {
+                        try { message = JSON.stringify(errData.error); } catch { }
+                    }
                 }
 
                 setError(`Request failed: ${message}`);
@@ -490,7 +505,8 @@ function RealTestMode() {
                 }
             } catch (err) {
                 setPolling(false);
-                setError(err instanceof Error ? err.message : "Poll failed");
+                const msg = err instanceof Error ? err.message : String(err);
+                setError(`Poll failed: ${msg}`);
             }
         };
 
