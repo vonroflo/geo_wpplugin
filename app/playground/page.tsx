@@ -125,6 +125,7 @@ type InsightRunResponse = {
     status: "processing" | "completed" | "failed";
     result: InsightResult | null;
     error: string | null;
+    status_detail?: string | null;
     created_at: string;
     updated_at: string;
     poll_count?: number;
@@ -724,9 +725,12 @@ function RealTestMode() {
                     ) : (
                         <button
                             onClick={stopAnalysis}
-                            className="w-full py-3 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-500 transition-colors"
+                            className="w-full py-3 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-500 transition-colors text-sm"
                         >
-                            🛑 Stop Analysis (poll #{insightData?.poll_count || 0})
+                            🛑 Stop Analysis
+                            <span className="block text-[10px] opacity-80 font-normal mt-0.5">
+                                {insightData?.status_detail || "Analyzing..."} (poll #{insightData?.poll_count || 0})
+                            </span>
                         </button>
                     )}
 
@@ -796,10 +800,13 @@ function RealTestMode() {
 function InsightsDisplay({ data }: { data: InsightRunResponse }) {
     if (data.status === "processing") {
         return (
-            <div className="flex flex-col items-center justify-center h-64">
+            <div className="flex flex-col items-center justify-center h-64 text-center">
                 <div className="animate-spin text-4xl mb-4">⏳</div>
-                <p className="text-lg text-zinc-400">Analysis in progress...</p>
-                <p className="text-sm text-zinc-600 mt-1">Poll count: {data.poll_count}</p>
+                <p className="text-lg text-zinc-400 font-medium">Analysis in progress...</p>
+                <p className="text-sm text-blue-400 mt-2 px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
+                    {data.status_detail || "Gathering AI insights"}
+                </p>
+                <p className="text-xs text-zinc-600 mt-4 underline decoration-zinc-800">Poll count: {data.poll_count}</p>
             </div>
         );
     }
@@ -854,17 +861,26 @@ function InsightsDisplay({ data }: { data: InsightRunResponse }) {
 
             {/* Mentions */}
             {result.mentions.length > 0 && (
-                <InsightCard title="💬 Mentions" icon="mentions">
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                <InsightCard title="💬 Brand Mentions & Evidence" icon="mentions">
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {result.mentions.map((m, i) => (
-                            <div key={i} className="flex items-center justify-between text-sm py-1 border-b border-zinc-800 last:border-0">
-                                <span className="text-zinc-300">{m.subject}</span>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">{m.provider}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${m.presence === "recommended_top" ? "bg-green-500/20 text-green-400" : m.presence === "mentioned" ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-500"}`}>
-                                        {m.presence.replace("_", " ")}
-                                    </span>
+                            <div key={i} className="pb-4 border-b border-zinc-800 last:border-0 last:pb-0">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                    <span className="text-zinc-200 font-medium">{m.intent_text}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 uppercase font-bold tracking-wider">{m.provider}</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${m.presence === "recommended_top" ? "bg-green-500/20 text-green-400" : m.presence === "mentioned" ? "bg-blue-500/20 text-blue-400" : "bg-zinc-800 text-zinc-500"}`}>
+                                            {m.presence.replace("_", " ")}
+                                        </span>
+                                    </div>
                                 </div>
+                                {(m as any).evidence && (m as any).evidence.length > 0 && (
+                                    <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-lg p-3 text-xs text-zinc-400 italic leading-relaxed relative">
+                                        <span className="absolute top-2 left-2 text-zinc-600 text-base opacity-20">"</span>
+                                        <p className="pl-3 pr-2">{(m as any).evidence[0].excerpt}</p>
+                                        <span className="absolute bottom-1 right-2 text-zinc-600 text-base opacity-20">"</span>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

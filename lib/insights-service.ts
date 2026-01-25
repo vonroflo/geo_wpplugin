@@ -234,6 +234,9 @@ export async function getInsightRunStatus(runId: string): Promise<InsightRun | n
 
         // Scan still running
         if (scan.status === "queued" || scan.status === "running") {
+            if (scan.status_detail !== run.status_detail) {
+                await updateRun(runId, { status_detail: scan.status_detail || "Analyzing..." });
+            }
             return await getRun(runId);
         }
 
@@ -313,6 +316,7 @@ async function gatherInsights(run: InsightRun, scan: Awaited<ReturnType<typeof g
             provider: m.provider,
             intent_text: m.intent_text,
             presence: m.presence,
+            evidence: m.evidence,
         })),
         competitors: competitors
             ? {

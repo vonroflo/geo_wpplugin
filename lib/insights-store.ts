@@ -90,6 +90,7 @@ export type InsightRun = {
     input: InsightRunInput;
     result: InsightRunResult | null;
     error: string | null;
+    status_detail?: string | null;
     created_at: string;
     updated_at: string;
     // Internal tracking

@@ -108,6 +108,7 @@ export const ScanZ = z.object({
     competitors: z.array(CompetitorRefZ).default([]),
     mentions: z.array(MentionZ).default([]),
     error: z.string().nullable().optional(),
+    status_detail: z.string().nullable().optional(),
     created_at: z.string(),
     completed_at: z.string().nullable().optional(),
 });

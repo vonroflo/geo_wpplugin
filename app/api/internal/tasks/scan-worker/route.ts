@@ -54,21 +54,11 @@ export async function POST(req: Request) {
 
         console.log(`[scan-worker] Starting scan for brand: ${scanData.brand.name}`);
 
-        // Query AI for each intent
-        const allResults: AIQueryResult[] = [];
-        const mentions: Array<{
-            subject: string;
-            provider: string;
-            intent_text: string;
-            presence: string;
-            rank_bucket: string | null;
-            confidence: number;
-            evidence: Array<{ type: string; excerpt: string }>;
-        }> = [];
+        // Query AI for each intent in parallel
+        console.log(`[scan-worker] Querying ${scanData.intents.length} intents in parallel`);
 
-        for (const intent of scanData.intents) {
-            console.log(`[scan-worker] Querying intent: "${intent.text}"`);
-
+        const intentResults = await Promise.all(scanData.intents.map(async (intent, index) => {
+            console.log(`[scan-worker] Starting intent: "${intent.text}"`);
             try {
                 const result = await queryOpenAI(
                     intent.text,
@@ -77,8 +67,6 @@ export async function POST(req: Request) {
                     scanData.market,
                     scanData.category
                 );
-
-                allResults.push(result);
 
                 // Create mention record for the brand
                 const mention = {
@@ -93,14 +81,26 @@ export async function POST(req: Request) {
                         : [],
                 };
 
-                mentions.push(mention);
-
-                // Store brand mention in sub-collection (only brand, not competitors)
+                // Store brand mention in sub-collection
                 await scanRef.collection("mentions").add(mention);
+
+                // Update status detail periodically
+                if ((index + 1) % 2 === 0 || index === scanData.intents.length - 1) {
+                    await scanRef.update({
+                        status_detail: `Processed ${index + 1} of ${scanData.intents.length} intents...`
+                    });
+                }
+
+                return { result, mention };
             } catch (intentError) {
                 console.error(`[scan-worker] Error querying intent "${intent.text}":`, intentError);
+                return null;
             }
-        }
+        }));
+
+        const completedIntents = intentResults.filter(Boolean) as Array<{ result: AIQueryResult, mention: any }>;
+        const allResults = completedIntents.map(c => c.result);
+        const mentions = completedIntents.map(c => c.mention);
 
         console.log(`[scan-worker] Completed ${allResults.length} queries, found ${mentions.length} mentions`);
 
@@ -124,6 +124,7 @@ export async function POST(req: Request) {
         // Update scan as completed with mentions array
         await scanRef.update({
             status: "succeeded",
+            status_detail: "Analysis complete",
             completed_at: new Date().toISOString(),
             mentions: mentions,
         });
