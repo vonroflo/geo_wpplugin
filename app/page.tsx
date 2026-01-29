@@ -94,7 +94,7 @@ export default function PluginLandingPage() {
                         <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                             {theme === "dark" ? "\u2600" : "\u263E"}
                         </button>
-                        <a href="https://github.com/vonroflo/geo_wpplugin/archive/refs/heads/main.zip" className="btn btn--primary btn--small">Download Free</a>
+                        <a href="/geo-optimizer.zip" className="btn btn--primary btn--small">Download Free</a>
                     </div>
                     <button
                         className={`plugin-nav__toggle ${mobileMenuOpen ? "active" : ""}`}
@@ -112,7 +112,7 @@ export default function PluginLandingPage() {
                 <a href="#install" className="nav-mobile__link" onClick={closeMobileMenu}>Install</a>
                 <a href="#examples" className="nav-mobile__link" onClick={closeMobileMenu}>Examples</a>
                 <a href="#faq" className="nav-mobile__link" onClick={closeMobileMenu}>FAQ</a>
-                <a href="https://github.com/vonroflo/geo_wpplugin/archive/refs/heads/main.zip" className="btn btn--primary" onClick={closeMobileMenu}>Download Free</a>
+                <a href="/geo-optimizer.zip" className="btn btn--primary" onClick={closeMobileMenu}>Download Free</a>
             </div>
 
             {/* ─── 2. Hero ─── */}
@@ -136,7 +136,7 @@ export default function PluginLandingPage() {
                     </p>
 
                     <div className="hero__buttons animate-in delay-3">
-                        <a href="https://github.com/vonroflo/geo_wpplugin/archive/refs/heads/main.zip" className="btn btn--primary btn--large">
+                        <a href="/geo-optimizer.zip" className="btn btn--primary btn--large">
                             Download Free Plugin
                         </a>
                         <a href="#features" className="btn btn--secondary btn--large">
@@ -492,7 +492,7 @@ export default function PluginLandingPage() {
                         Install GEO Optimizer today and make your WordPress content the
                         source AI engines cite first.
                     </p>
-                    <a href="https://github.com/vonroflo/geo_wpplugin/archive/refs/heads/main.zip" className="btn btn--white btn--large animate-in delay-2">
+                    <a href="/geo-optimizer.zip" className="btn btn--white btn--large animate-in delay-2">
                         Download Free Plugin
                     </a>
                 </div>

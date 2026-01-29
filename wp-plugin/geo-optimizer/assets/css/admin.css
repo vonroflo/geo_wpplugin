@@ -1,0 +1,150 @@
+/* GEO Optimizer — WordPress Admin Styles */
+
+/* --- Settings page status banner --- */
+.geo-optimizer-status {
+    padding: 12px 16px;
+    border-left: 4px solid #00a32a;
+    background: #f0f6f0;
+    margin: 16px 0;
+    border-radius: 2px;
+}
+
+.geo-optimizer-status--error {
+    border-left-color: #d63638;
+    background: #fcf0f0;
+}
+
+/* --- Metabox --- */
+.geo-optimizer-metabox {
+    padding: 4px 0;
+}
+
+/* --- Score card (metabox + AJAX results) --- */
+.geo-optimizer-score-card {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.geo-score-big {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1d2327;
+    margin-bottom: 4px;
+}
+
+.geo-grade {
+    display: inline-block;
+    font-size: 18px;
+    font-weight: 600;
+    vertical-align: super;
+    margin-left: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #dff0d8;
+    color: #3c763d;
+}
+
+.geo-score-label {
+    font-size: 13px;
+    color: #646970;
+    margin: 4px 0 8px;
+}
+
+.geo-analyzed-at {
+    font-size: 11px;
+    color: #8c8f94;
+    margin: 4px 0;
+}
+
+.geo-no-data {
+    color: #646970;
+    font-style: italic;
+    margin-bottom: 12px;
+}
+
+.geo-schemas-count {
+    font-size: 12px;
+    color: #00a32a;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+/* --- Breakdown bars --- */
+.geo-breakdown {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+}
+
+.geo-breakdown td {
+    padding: 4px 6px;
+    vertical-align: middle;
+}
+
+.geo-breakdown td:first-child {
+    white-space: nowrap;
+    color: #50575e;
+    width: 120px;
+    text-align: left;
+}
+
+.geo-breakdown td:last-child {
+    width: 40px;
+    text-align: right;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.geo-bar {
+    height: 8px;
+    background: #e2e4e7;
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.geo-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0073aa, #00a0d2);
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+/* --- Recommendations --- */
+.geo-recommendations {
+    text-align: left;
+    margin: 8px 0;
+    padding-left: 18px;
+}
+
+.geo-recommendations li {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #1d2327;
+}
+
+.geo-recommendations li small {
+    color: #646970;
+}
+
+.geo-recommendations h4 {
+    text-align: left;
+    font-size: 13px;
+    margin: 12px 0 6px;
+}
+
+/* --- Error state --- */
+.geo-error {
+    color: #d63638;
+    font-size: 13px;
+}
+
+/* --- Analyze button --- */
+#geo-optimizer-analyze-btn {
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+}
