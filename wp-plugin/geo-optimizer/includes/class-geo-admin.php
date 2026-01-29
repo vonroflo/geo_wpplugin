@@ -6,6 +6,7 @@
  * - Settings sub-page (API URL, toggles).
  * - Post / page metabox for on-demand analysis.
  * - Bulk analyze AJAX.
+ * - Per-post insights AJAX (breakdown, recommendations, keywords).
  * - Auto-analysis on save_post when enabled.
  */
 
@@ -37,6 +38,7 @@ class GEO_Admin {
         // AJAX handlers.
         add_action( 'wp_ajax_geo_optimizer_analyze', array( $this, 'ajax_analyze' ) );
         add_action( 'wp_ajax_geo_optimizer_bulk_analyze', array( $this, 'ajax_bulk_analyze' ) );
+        add_action( 'wp_ajax_geo_optimizer_post_insights', array( $this, 'ajax_post_insights' ) );
     }
 
     /* ==================================================================
@@ -183,12 +185,12 @@ class GEO_Admin {
                                 <th class="column-score"><?php esc_html_e( 'GEO Score', 'geo-optimizer' ); ?></th>
                                 <th class="column-grade"><?php esc_html_e( 'Grade', 'geo-optimizer' ); ?></th>
                                 <th class="column-schemas"><?php esc_html_e( 'Schemas', 'geo-optimizer' ); ?></th>
-                                <th class="column-analyzed"><?php esc_html_e( 'Analyzed', 'geo-optimizer' ); ?></th>
+                                <th class="column-actions-col"><?php esc_html_e( 'Insights', 'geo-optimizer' ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ( $posts as $p ) : ?>
-                            <tr>
+                            <tr class="geo-post-row" data-post-id="<?php echo esc_attr( $p['id'] ); ?>">
                                 <td class="column-title">
                                     <a href="<?php echo esc_url( get_edit_post_link( $p['id'] ) ); ?>">
                                         <?php echo esc_html( $p['title'] ); ?>
@@ -207,7 +209,18 @@ class GEO_Admin {
                                     </span>
                                 </td>
                                 <td class="column-schemas"><?php echo esc_html( $p['schema_count'] ); ?></td>
-                                <td class="column-analyzed"><?php echo esc_html( $p['analyzed_ago'] ); ?></td>
+                                <td class="column-actions-col">
+                                    <button type="button" class="button button-small geo-view-insights-btn" data-post-id="<?php echo esc_attr( $p['id'] ); ?>">
+                                        <?php esc_html_e( 'View', 'geo-optimizer' ); ?>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="geo-detail-row" id="geo-detail-<?php echo esc_attr( $p['id'] ); ?>" style="display:none;">
+                                <td colspan="6">
+                                    <div class="geo-insights-panel">
+                                        <div class="geo-insights-loading"><?php esc_html_e( 'Loading insights...', 'geo-optimizer' ); ?></div>
+                                    </div>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -431,7 +444,195 @@ class GEO_Admin {
         ?>
         <script>
         (function($){
-            // Single post analyze.
+            /* ── Dimension label map ── */
+            var dimLabels = {
+                schema_markup: 'Schema Markup',
+                entity_clarity: 'Entity Clarity',
+                ai_readability: 'AI Readability',
+                content_structure: 'Content Structure',
+                authority_signals: 'Authority Signals'
+            };
+            var impactColors = { high: '#d63638', medium: '#dba617', low: '#00a32a' };
+            var effortLabels = { quick_win: 'Quick Win', moderate: 'Moderate', significant: 'Significant' };
+
+            /* ── Render insights panel HTML ── */
+            function renderInsights(d) {
+                var html = '<div class="geo-ip">';
+
+                /* --- Score Breakdown --- */
+                if (d.score && d.score.breakdown) {
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Score Breakdown</h4>';
+                    html += '<div class="geo-ip__breakdown">';
+                    var bd = d.score.breakdown;
+                    for (var key in dimLabels) {
+                        if (bd[key]) {
+                            var dim = bd[key];
+                            var pct = Math.round((dim.score / dim.max) * 100);
+                            var barColor = pct >= 70 ? '#00a32a' : pct >= 40 ? '#dba617' : '#d63638';
+                            html += '<div class="geo-ip__dim">';
+                            html += '<div class="geo-ip__dim-header"><span class="geo-ip__dim-label">' + dimLabels[key] + '</span><span class="geo-ip__dim-score">' + dim.score + '/' + dim.max + '</span></div>';
+                            html += '<div class="geo-bar"><div class="geo-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>';
+                            html += '<p class="geo-ip__dim-detail">' + dim.details + '</p>';
+                            html += '</div>';
+                        }
+                    }
+                    html += '</div></div>';
+                }
+
+                /* --- Comparison --- */
+                if (d.score && d.score.comparison) {
+                    html += '<div class="geo-ip__section geo-ip__comparison">';
+                    html += '<span class="geo-ip__percentile">Top <strong>' + (100 - d.score.comparison.percentile) + '%</strong></span>';
+                    html += '<span class="geo-ip__benchmark">Benchmark avg: ' + d.score.comparison.average_score + '</span>';
+                    html += '</div>';
+                }
+
+                /* --- Recommendations --- */
+                if (d.score && d.score.recommendations && d.score.recommendations.length > 0) {
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Recommendations to Improve AI Visibility</h4>';
+                    var recs = d.score.recommendations;
+                    var max = Math.min(recs.length, 8);
+                    for (var i = 0; i < max; i++) {
+                        var rec = recs[i];
+                        var impactColor = impactColors[rec.impact] || '#646970';
+                        var effortText = effortLabels[rec.effort] || rec.effort;
+                        html += '<div class="geo-ip__rec">';
+                        html += '<div class="geo-ip__rec-header">';
+                        html += '<span class="geo-ip__rec-num">' + rec.priority + '</span>';
+                        html += '<span class="geo-ip__rec-action">' + rec.action + '</span>';
+                        html += '<span class="geo-ip__rec-badges">';
+                        html += '<span class="geo-ip__badge" style="background:' + impactColor + '">' + rec.impact + ' impact</span>';
+                        html += '<span class="geo-ip__badge geo-ip__badge--effort">' + effortText + '</span>';
+                        html += '</span>';
+                        html += '</div>';
+                        html += '<p class="geo-ip__rec-detail">' + rec.details + '</p>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+
+                /* --- Keywords --- */
+                if (d.entities && d.entities.keywords) {
+                    var kw = d.entities.keywords;
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Target Keywords</h4>';
+                    html += '<div class="geo-ip__keywords">';
+                    if (kw.primary && kw.primary.length > 0) {
+                        html += '<div class="geo-ip__kw-group"><span class="geo-ip__kw-label">Primary:</span>';
+                        for (var p = 0; p < kw.primary.length; p++) {
+                            html += '<span class="geo-ip__tag geo-ip__tag--primary">' + kw.primary[p] + '</span>';
+                        }
+                        html += '</div>';
+                    }
+                    if (kw.secondary && kw.secondary.length > 0) {
+                        html += '<div class="geo-ip__kw-group"><span class="geo-ip__kw-label">Secondary:</span>';
+                        for (var s = 0; s < kw.secondary.length; s++) {
+                            html += '<span class="geo-ip__tag geo-ip__tag--secondary">' + kw.secondary[s] + '</span>';
+                        }
+                        html += '</div>';
+                    }
+                    if (kw.missing && kw.missing.length > 0) {
+                        html += '<div class="geo-ip__kw-group"><span class="geo-ip__kw-label">Missing (add these):</span>';
+                        for (var m = 0; m < kw.missing.length; m++) {
+                            html += '<span class="geo-ip__tag geo-ip__tag--missing">' + kw.missing[m] + '</span>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div></div>';
+                }
+
+                /* --- Content Intent / About Suggestions --- */
+                if (d.entities && d.entities.about_suggestions && d.entities.about_suggestions.length > 0) {
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Content Intent Signals</h4>';
+                    html += '<p class="geo-ip__desc">Topics AI models associate with this content:</p>';
+                    html += '<div class="geo-ip__about">';
+                    for (var a = 0; a < d.entities.about_suggestions.length; a++) {
+                        html += '<span class="geo-ip__tag geo-ip__tag--about">' + d.entities.about_suggestions[a] + '</span>';
+                    }
+                    html += '</div></div>';
+                }
+
+                /* --- Entity List --- */
+                if (d.entities && d.entities.entities && d.entities.entities.length > 0) {
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Detected Entities</h4>';
+                    html += '<div class="geo-ip__entities">';
+                    for (var e = 0; e < d.entities.entities.length; e++) {
+                        var ent = d.entities.entities[e];
+                        var statusClass = 'geo-ip__entity--' + ent.status;
+                        html += '<div class="geo-ip__entity ' + statusClass + '">';
+                        html += '<strong>' + ent.name + '</strong> <span class="geo-ip__entity-type">' + ent.type + '</span>';
+                        html += '<span class="geo-ip__entity-status">' + ent.status + '</span>';
+                        if (ent.suggestions && ent.suggestions.length > 0) {
+                            html += '<p class="geo-ip__entity-suggestion">' + ent.suggestions[0] + '</p>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div></div>';
+                }
+
+                /* --- Entity Recommendations --- */
+                if (d.entities && d.entities.recommendations && d.entities.recommendations.length > 0) {
+                    html += '<div class="geo-ip__section">';
+                    html += '<h4 class="geo-ip__heading">Entity Optimization Tips</h4>';
+                    html += '<ul class="geo-ip__entity-recs">';
+                    for (var er = 0; er < d.entities.recommendations.length; er++) {
+                        html += '<li>' + d.entities.recommendations[er] + '</li>';
+                    }
+                    html += '</ul></div>';
+                }
+
+                html += '</div>';
+                return html;
+            }
+
+            /* ── View Insights button ── */
+            var insightsCache = {};
+            $(document).on('click', '.geo-view-insights-btn', function(e) {
+                e.preventDefault();
+                var $btn = $(this);
+                var postId = $btn.data('post-id');
+                var $detailRow = $('#geo-detail-' + postId);
+                var $panel = $detailRow.find('.geo-insights-panel');
+
+                // Toggle if already visible
+                if ($detailRow.is(':visible')) {
+                    $detailRow.hide();
+                    $btn.text('View');
+                    return;
+                }
+
+                $detailRow.show();
+                $btn.text('Hide');
+
+                // Use cache if available
+                if (insightsCache[postId]) {
+                    $panel.html(renderInsights(insightsCache[postId]));
+                    return;
+                }
+
+                $panel.html('<div class="geo-insights-loading">Loading insights and keywords\u2026</div>');
+
+                $.post(geoOptimizer.ajaxUrl, {
+                    action: 'geo_optimizer_post_insights',
+                    post_id: postId,
+                    _wpnonce: geoOptimizer.nonce
+                }, function(response) {
+                    if (response.success) {
+                        insightsCache[postId] = response.data;
+                        $panel.html(renderInsights(response.data));
+                    } else {
+                        $panel.html('<p class="geo-error">' + (response.data || 'Failed to load insights.') + '</p>');
+                    }
+                }).fail(function() {
+                    $panel.html('<p class="geo-error">Request failed. Check your API connection.</p>');
+                });
+            });
+
+            /* ── Single post analyze (metabox) ── */
             $(document).on('click', '#geo-optimizer-analyze-btn', function(e) {
                 e.preventDefault();
                 var $btn = $(this);
@@ -496,7 +697,7 @@ class GEO_Admin {
                 });
             });
 
-            // Bulk analyze.
+            /* ── Bulk analyze ── */
             $(document).on('click', '#geo-bulk-analyze-btn', function(e) {
                 e.preventDefault();
                 var $btn = $(this);
@@ -682,6 +883,45 @@ class GEO_Admin {
             'total'    => count( $posts ),
             'analyzed' => $analyzed,
             'results'  => $results,
+        ) );
+    }
+
+    public function ajax_post_insights() {
+        check_ajax_referer( 'geo_optimizer_analyze' );
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( 'Permission denied.', 403 );
+        }
+
+        $post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+        if ( ! $post_id ) {
+            wp_send_json_error( 'Invalid post ID.' );
+        }
+
+        $post = get_post( $post_id );
+        if ( ! $post ) {
+            wp_send_json_error( 'Post not found.' );
+        }
+
+        // Score data (already stored from bulk/single analyze).
+        $score_data = get_post_meta( $post_id, '_geo_optimizer_score', true );
+
+        // Entity data — fetch from cache or call API on demand.
+        $entity_data = get_post_meta( $post_id, '_geo_optimizer_entities', true );
+
+        if ( empty( $entity_data ) ) {
+            $content = wp_strip_all_tags( $post->post_content );
+            $url     = get_permalink( $post_id );
+
+            $entity_result = $this->api->optimize_entities( $content, $post->post_title, $url );
+            if ( ! is_wp_error( $entity_result ) ) {
+                update_post_meta( $post_id, '_geo_optimizer_entities', $entity_result );
+                $entity_data = $entity_result;
+            }
+        }
+
+        wp_send_json_success( array(
+            'score'    => is_array( $score_data ) ? $score_data : null,
+            'entities' => is_array( $entity_data ) ? $entity_data : null,
         ) );
     }
 

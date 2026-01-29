@@ -358,6 +358,343 @@
     margin-top: 8px;
 }
 
+/* === Insights Panel (expandable detail rows) === */
+.column-actions-col {
+    width: 80px;
+    text-align: center;
+}
+
+.geo-view-insights-btn {
+    font-size: 12px;
+    padding: 2px 10px;
+    cursor: pointer;
+}
+
+.geo-detail-row {
+    display: none;
+}
+
+.geo-detail-row > td {
+    padding: 0 12px 16px;
+    background: #f9f9f9;
+    border-top: none;
+}
+
+.geo-insights-panel {
+    max-width: 900px;
+}
+
+.geo-insights-loading {
+    padding: 16px 0;
+    color: #646970;
+    font-style: italic;
+    font-size: 13px;
+}
+
+/* Main insights wrapper */
+.geo-ip {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.geo-ip__section {
+    padding: 14px 0;
+    border-bottom: 1px solid #e2e4e7;
+}
+
+.geo-ip__section:last-child {
+    border-bottom: none;
+}
+
+.geo-ip__heading {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* --- Score Breakdown Dimensions --- */
+.geo-ip__breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.geo-ip__dim {
+    padding: 0;
+}
+
+.geo-ip__dim-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+}
+
+.geo-ip__dim-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1d2327;
+}
+
+.geo-ip__dim-score {
+    font-size: 12px;
+    font-weight: 600;
+    color: #50575e;
+}
+
+.geo-ip__dim-detail {
+    font-size: 11px;
+    color: #646970;
+    margin: 4px 0 0;
+    line-height: 1.4;
+}
+
+/* --- Comparison / Percentile --- */
+.geo-ip__comparison {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 14px;
+    background: #eef5ff;
+    border-radius: 4px;
+    border-bottom: none;
+}
+
+.geo-ip__percentile {
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.geo-ip__percentile strong {
+    color: #0073aa;
+}
+
+.geo-ip__benchmark {
+    font-size: 12px;
+    color: #646970;
+}
+
+/* --- Recommendations --- */
+.geo-ip__rec {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    border: 1px solid #e2e4e7;
+    border-radius: 4px;
+}
+
+.geo-ip__rec:last-child {
+    margin-bottom: 0;
+}
+
+.geo-ip__rec-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.geo-ip__rec-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0073aa;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.geo-ip__rec-action {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1d2327;
+}
+
+.geo-ip__rec-badges {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.geo-ip__badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.geo-ip__badge--effort {
+    background: #646970;
+    color: #fff;
+}
+
+.geo-ip__rec-detail {
+    font-size: 12px;
+    color: #646970;
+    margin: 6px 0 0;
+    padding-left: 30px;
+    line-height: 1.5;
+}
+
+/* --- Keyword Tags --- */
+.geo-ip__keywords {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.geo-ip__kw-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.geo-ip__kw-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #50575e;
+    min-width: 80px;
+}
+
+.geo-ip__tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.geo-ip__tag--primary {
+    background: #dff0d8;
+    color: #3c763d;
+    border: 1px solid #c3e6cb;
+}
+
+.geo-ip__tag--secondary {
+    background: #d9edf7;
+    color: #31708f;
+    border: 1px solid #b8daff;
+}
+
+.geo-ip__tag--missing {
+    background: #f2dede;
+    color: #a94442;
+    border: 1px solid #f5c6cb;
+}
+
+.geo-ip__tag--about {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #ddd6fe;
+}
+
+/* --- Content Intent / About --- */
+.geo-ip__desc {
+    font-size: 12px;
+    color: #646970;
+    margin: 0 0 8px;
+}
+
+.geo-ip__about {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* --- Entity List --- */
+.geo-ip__entities {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.geo-ip__entity {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #e2e4e7;
+    background: #fff;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.geo-ip__entity--found {
+    border-left: 3px solid #00a32a;
+}
+
+.geo-ip__entity--weak {
+    border-left: 3px solid #dba617;
+}
+
+.geo-ip__entity--missing {
+    border-left: 3px solid #d63638;
+}
+
+.geo-ip__entity-type {
+    font-size: 10px;
+    color: #646970;
+    text-transform: uppercase;
+    margin-left: 4px;
+}
+
+.geo-ip__entity-status {
+    float: right;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.geo-ip__entity--found .geo-ip__entity-status {
+    background: #dff0d8;
+    color: #3c763d;
+}
+
+.geo-ip__entity--weak .geo-ip__entity-status {
+    background: #fcf8e3;
+    color: #8a6d3b;
+}
+
+.geo-ip__entity--missing .geo-ip__entity-status {
+    background: #f2dede;
+    color: #a94442;
+}
+
+.geo-ip__entity-suggestion {
+    font-size: 11px;
+    color: #646970;
+    margin: 4px 0 0;
+    font-style: italic;
+}
+
+/* --- Entity Optimization Tips --- */
+.geo-ip__entity-recs {
+    margin: 0;
+    padding-left: 18px;
+    list-style: disc;
+}
+
+.geo-ip__entity-recs li {
+    font-size: 12px;
+    color: #1d2327;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+
 /* === Responsive === */
 @media (max-width: 782px) {
     .geo-summary-grid {
@@ -368,5 +705,23 @@
     .geo-posts-table .column-schemas,
     .geo-posts-table .column-analyzed {
         display: none;
+    }
+
+    .geo-ip__entities {
+        grid-template-columns: 1fr;
+    }
+
+    .geo-ip__rec-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .geo-ip__rec-detail {
+        padding-left: 0;
+    }
+
+    .geo-ip__kw-group {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
