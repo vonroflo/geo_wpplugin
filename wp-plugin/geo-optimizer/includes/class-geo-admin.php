@@ -520,12 +520,19 @@ class GEO_Admin {
                             for (var i = 0; i < d.results.length; i++) {
                                 var r = d.results[i];
                                 var icon = r.success ? '\u2705' : '\u274C';
-                                logHtml += '<div class="geo-bulk-log__item">' + icon + ' ' + r.title + (r.score ? ' &mdash; Score: ' + r.score : '') + (r.error ? ' &mdash; ' + r.error : '') + '</div>';
+                                var detail = '';
+                                if (r.success && r.score) {
+                                    detail = ' &mdash; Score: ' + r.score;
+                                } else if (!r.success && r.error) {
+                                    detail = ' &mdash; ' + (typeof r.error === 'string' ? r.error : JSON.stringify(r.error));
+                                }
+                                logHtml += '<div class="geo-bulk-log__item">' + icon + ' ' + r.title + detail + '</div>';
                             }
                         }
                         $log.html(logHtml);
-                        // Reload after 2s to refresh stats.
-                        setTimeout(function() { location.reload(); }, 2000);
+                        if (d.analyzed > 0) {
+                            $log.append('<p style="margin-top:12px"><a href="" class="button button-secondary">Refresh Dashboard</a></p>');
+                        }
                     } else {
                         $progress.html('<span class="geo-error">' + (response.data || 'Bulk analysis failed.') + '</span>');
                     }

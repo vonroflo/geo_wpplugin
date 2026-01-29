@@ -171,7 +171,8 @@ class GEO_API_Client {
         $data = json_decode( $body, true );
 
         if ( $code < 200 || $code >= 300 ) {
-            $message = isset( $data['error'] ) ? $data['error'] : "API returned HTTP $code";
+            $msg_raw = isset( $data['error'] ) ? $data['error'] : null;
+            $message = is_string( $msg_raw ) ? $msg_raw : "API returned HTTP $code";
             return new WP_Error( 'geo_api_error', $message, array( 'status' => $code ) );
         }
 
