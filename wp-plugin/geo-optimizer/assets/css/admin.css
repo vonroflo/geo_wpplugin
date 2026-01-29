@@ -1,12 +1,13 @@
 /* GEO Optimizer — WordPress Admin Styles */
 
-/* --- Settings page status banner --- */
+/* === Status Banner === */
 .geo-optimizer-status {
     padding: 12px 16px;
     border-left: 4px solid #00a32a;
     background: #f0f6f0;
     margin: 16px 0;
     border-radius: 2px;
+    font-size: 14px;
 }
 
 .geo-optimizer-status--error {
@@ -14,12 +15,220 @@
     background: #fcf0f0;
 }
 
-/* --- Metabox --- */
+/* === Dashboard Layout === */
+.geo-dashboard__title {
+    font-size: 23px;
+    font-weight: 400;
+    margin: 0 0 8px;
+}
+
+/* === Summary Cards === */
+.geo-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.geo-summary-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+}
+
+.geo-summary-card__value {
+    font-size: 36px;
+    font-weight: 600;
+    color: #1d2327;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.geo-summary-card__label {
+    font-size: 13px;
+    color: #646970;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* === Card (generic white box) === */
+.geo-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.geo-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.geo-card__desc {
+    font-size: 14px;
+    color: #646970;
+    margin: 0 0 14px;
+}
+
+/* === Grade Distribution Chart === */
+.geo-grade-dist {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    height: 140px;
+    padding: 10px 0;
+}
+
+.geo-grade-dist__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+
+.geo-grade-dist__bar-wrap {
+    flex: 1;
+    width: 100%;
+    max-width: 48px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.geo-grade-dist__bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+    transition: height 0.3s ease;
+}
+
+.geo-grade-dist__letter {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 8px;
+}
+
+.geo-grade-dist__count {
+    font-size: 12px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+/* === Bulk Analyze === */
+.geo-bulk-progress {
+    display: inline-block;
+    margin-left: 12px;
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.geo-bulk-log {
+    margin-top: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.geo-bulk-log__item {
+    padding: 4px 0;
+    font-size: 13px;
+    color: #50575e;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+/* === Posts Table === */
+.geo-posts-table .column-type {
+    width: 80px;
+}
+
+.geo-posts-table .column-score {
+    width: 150px;
+}
+
+.geo-posts-table .column-grade {
+    width: 70px;
+}
+
+.geo-posts-table .column-schemas {
+    width: 80px;
+    text-align: center;
+}
+
+.geo-posts-table .column-analyzed {
+    width: 120px;
+}
+
+/* Inline score bar in table */
+.geo-inline-bar {
+    display: inline-block;
+    width: 80px;
+    height: 8px;
+    background: #e2e4e7;
+    border-radius: 4px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.geo-inline-bar__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0073aa, #00a0d2);
+    border-radius: 4px;
+}
+
+.geo-inline-score {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+/* Grade badges */
+.geo-grade-badge {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 3px;
+    text-align: center;
+    min-width: 28px;
+}
+
+.geo-grade-badge--a {
+    background: #dff0d8;
+    color: #3c763d;
+}
+
+.geo-grade-badge--b {
+    background: #d9edf7;
+    color: #31708f;
+}
+
+.geo-grade-badge--c {
+    background: #fcf8e3;
+    color: #8a6d3b;
+}
+
+.geo-grade-badge--d {
+    background: #fce8d5;
+    color: #a94442;
+}
+
+.geo-grade-badge--f {
+    background: #f2dede;
+    color: #a94442;
+}
+
+/* === Metabox === */
 .geo-optimizer-metabox {
     padding: 4px 0;
 }
 
-/* --- Score card (metabox + AJAX results) --- */
+/* === Score Card (metabox + AJAX results) === */
 .geo-optimizer-score-card {
     text-align: center;
     margin-bottom: 12px;
@@ -70,7 +279,7 @@
     margin: 8px 0;
 }
 
-/* --- Breakdown bars --- */
+/* === Breakdown Bars === */
 .geo-breakdown {
     width: 100%;
     border-collapse: collapse;
@@ -112,7 +321,7 @@
     transition: width 0.4s ease;
 }
 
-/* --- Recommendations --- */
+/* === Recommendations === */
 .geo-recommendations {
     text-align: left;
     margin: 8px 0;
@@ -136,15 +345,28 @@
     margin: 12px 0 6px;
 }
 
-/* --- Error state --- */
+/* === Error State === */
 .geo-error {
     color: #d63638;
     font-size: 13px;
 }
 
-/* --- Analyze button --- */
+/* === Analyze Button === */
 #geo-optimizer-analyze-btn {
     width: 100%;
     text-align: center;
     margin-top: 8px;
+}
+
+/* === Responsive === */
+@media (max-width: 782px) {
+    .geo-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .geo-posts-table .column-type,
+    .geo-posts-table .column-schemas,
+    .geo-posts-table .column-analyzed {
+        display: none;
+    }
 }
