@@ -1,159 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
-import "./landing.css";
+import { useState, useEffect } from "react";
+import "./plugin.css";
 
-// Feature preview content
-const trackingMockup = `
-<div class="mockup-container">
-  <div class="mockup-header">
-    <div class="mockup-title">Live AI Mentions</div>
-    <div class="mockup-badge-live"><span class="live-dot"></span> Real-time</div>
-  </div>
-  <div class="mockup-feed">
-    <div class="mention-item">
-      <div class="mention-platform chatgpt">ChatGPT</div>
-      <div class="mention-content">
-        <div class="mention-query">"Best project management tools for startups"</div>
-        <div class="mention-result"><span class="mention-cited">Cited</span> Ranked #2 in response</div>
-      </div>
-      <div class="mention-time">2m ago</div>
-    </div>
-    <div class="mention-item">
-      <div class="mention-platform claude">Claude</div>
-      <div class="mention-content">
-        <div class="mention-query">"How to improve team productivity"</div>
-        <div class="mention-result"><span class="mention-cited">Cited</span> Primary recommendation</div>
-      </div>
-      <div class="mention-time">5m ago</div>
-    </div>
-    <div class="mention-item">
-      <div class="mention-platform perplexity">Perplexity</div>
-      <div class="mention-content">
-        <div class="mention-query">"Top SaaS tools 2026"</div>
-        <div class="mention-result"><span class="mention-missed">Not cited</span> Competitor mentioned</div>
-      </div>
-      <div class="mention-time">8m ago</div>
-    </div>
-    <div class="mention-item">
-      <div class="mention-platform gemini">Gemini</div>
-      <div class="mention-content">
-        <div class="mention-query">"Software recommendations for remote teams"</div>
-        <div class="mention-result"><span class="mention-cited">Cited</span> Listed in top 5</div>
-      </div>
-      <div class="mention-time">12m ago</div>
-    </div>
-  </div>
-</div>`;
-
-const scoreMockup = `
-<div class="mockup-container">
-  <div class="mockup-header">
-    <div class="mockup-title">GEO Score Dashboard</div>
-    <div class="mockup-period">Last 30 days</div>
-  </div>
-  <div class="score-dashboard">
-    <div class="score-main">
-      <div class="score-ring-large">
-        <svg viewBox="0 0 120 120" class="score-svg">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-width="8" style="color: var(--border)"/>
-          <circle cx="60" cy="60" r="54" fill="none" stroke="url(#scoreGradient)" stroke-width="8" stroke-linecap="round" stroke-dasharray="339.292" stroke-dashoffset="91" transform="rotate(-90 60 60)" class="score-circle-animated"/>
-          <defs><linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#00B894"/></linearGradient></defs>
-        </svg>
-        <div class="score-value-large" id="scoreValue">0</div>
-      </div>
-      <div class="score-change-positive">+12 pts vs last month</div>
-    </div>
-    <div class="score-breakdown">
-      <div class="breakdown-item"><div class="breakdown-label">Citations</div><div class="breakdown-bar"><div class="breakdown-fill" data-width="78"></div></div><div class="breakdown-value">78%</div></div>
-      <div class="breakdown-item"><div class="breakdown-label">Sentiment</div><div class="breakdown-bar"><div class="breakdown-fill" data-width="85"></div></div><div class="breakdown-value">85%</div></div>
-      <div class="breakdown-item"><div class="breakdown-label">Accuracy</div><div class="breakdown-bar"><div class="breakdown-fill" data-width="92"></div></div><div class="breakdown-value">92%</div></div>
-      <div class="breakdown-item"><div class="breakdown-label">Coverage</div><div class="breakdown-bar"><div class="breakdown-fill" data-width="61"></div></div><div class="breakdown-value">61%</div></div>
-    </div>
-  </div>
-</div>`;
-
-const optimizationMockup = `
-<div class="mockup-container">
-  <div class="mockup-header">
-    <div class="mockup-title">Optimization Recommendations</div>
-    <div class="mockup-badge-score">+18 pts potential</div>
-  </div>
-  <div class="optimization-list">
-    <div class="optimization-item high">
-      <div class="optimization-priority">High Impact</div>
-      <div class="optimization-content">
-        <div class="optimization-title">Add structured FAQ schema</div>
-        <div class="optimization-desc">Your FAQ page lacks schema markup. Adding this could increase citation rate by 23%.</div>
-      </div>
-      <div class="optimization-impact">+8 pts</div>
-    </div>
-    <div class="optimization-item medium">
-      <div class="optimization-priority">Medium Impact</div>
-      <div class="optimization-content">
-        <div class="optimization-title">Improve entity definitions</div>
-        <div class="optimization-desc">Define your product category more clearly in meta descriptions and headings.</div>
-      </div>
-      <div class="optimization-impact">+5 pts</div>
-    </div>
-    <div class="optimization-item medium">
-      <div class="optimization-priority">Medium Impact</div>
-      <div class="optimization-content">
-        <div class="optimization-title">Create comparison content</div>
-        <div class="optimization-desc">AI models frequently cite comparison pages. Create "vs" content for top competitors.</div>
-      </div>
-      <div class="optimization-impact">+5 pts</div>
-    </div>
-  </div>
-</div>`;
-
-const codeBlock = `
-<div class="code-block" id="codeBlock">
-  <div class="code-line" style="margin-bottom: 8px;">
-    <span class="code-comment">// Get your GEO Score via API</span>
-  </div>
-  <div class="code-line">
-    <span class="code-keyword">const</span> response = <span class="code-keyword">await</span> fetch(
-  </div>
-  <div class="code-line" style="padding-left: 20px;">
-    <span class="code-string">'https://api.georank.io/v1/score'</span>,
-  </div>
-  <div class="code-line" style="padding-left: 20px;">{</div>
-  <div class="code-line" style="padding-left: 40px;">
-    headers: { <span class="code-string">'Authorization'</span>: <span class="code-string">\`Bearer \${API_KEY}\`</span> }
-  </div>
-  <div class="code-line" style="padding-left: 20px;">})</div>
-  <div class="code-line" style="margin-top: 16px;">
-    <span class="code-keyword">const</span> { score, platforms, recommendations } =
-  </div>
-  <div class="code-line" style="padding-left: 20px;">
-    <span class="code-keyword">await</span> response.json()
-  </div>
-  <div class="code-line" style="margin-top: 16px;">
-    <span class="code-comment">// Response:</span>
-  </div>
-  <div class="code-line" style="color: var(--text-light);">
-    // { score: 73, platforms: { chatgpt: 47, claude: 62, ... } }
-  </div>
-</div>`;
-
-const mockups = [trackingMockup, scoreMockup, optimizationMockup, codeBlock];
-
-export default function LandingPage() {
+export default function PluginLandingPage() {
     const [theme, setTheme] = useState<"light" | "dark">("light");
     const [mounted, setMounted] = useState(false);
-    const [activeFeature, setActiveFeature] = useState(0);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [navScrolled, setNavScrolled] = useState(false);
-    const scoreValueRef = useRef<HTMLSpanElement>(null);
-    const scoreRingRef = useRef<HTMLDivElement>(null);
-    const featurePreviewRef = useRef<HTMLDivElement>(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    // Initialize theme from localStorage
+    // Initialize theme
     useEffect(() => {
         setMounted(true);
-        const stored = localStorage.getItem("georank_theme");
+        const stored = localStorage.getItem("geo_theme");
         if (stored === "dark" || stored === "light") {
             setTheme(stored);
         } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -161,7 +20,7 @@ export default function LandingPage() {
         }
     }, []);
 
-    // Apply theme to document
+    // Apply theme
     useEffect(() => {
         if (!mounted) return;
         const root = document.documentElement;
@@ -172,931 +31,493 @@ export default function LandingPage() {
             root.classList.remove("dark");
             root.style.colorScheme = "light";
         }
-        localStorage.setItem("georank_theme", theme);
+        localStorage.setItem("geo_theme", theme);
     }, [theme, mounted]);
 
-    const toggleTheme = () => {
-        setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-    };
-
-    // Animate GEO Score on load
+    // Nav scroll
     useEffect(() => {
         if (!mounted) return;
-        const targetScore = 73;
-        let currentScore = 0;
-
-        const timeout = setTimeout(() => {
-            const interval = setInterval(() => {
-                if (currentScore >= targetScore) {
-                    clearInterval(interval);
-                    return;
-                }
-                currentScore++;
-                if (scoreValueRef.current) {
-                    scoreValueRef.current.textContent = String(currentScore);
-                }
-                if (scoreRingRef.current) {
-                    scoreRingRef.current.style.setProperty(
-                        "--score-deg",
-                        currentScore * 3.6 + "deg"
-                    );
-                }
-            }, 25);
-        }, 500);
-
-        return () => clearTimeout(timeout);
+        const onScroll = () => setNavScrolled(window.scrollY > 50);
+        window.addEventListener("scroll", onScroll);
+        return () => window.removeEventListener("scroll", onScroll);
     }, [mounted]);
 
-    // Scroll animations using Intersection Observer
+    // Scroll animations
     useEffect(() => {
         if (!mounted) return;
-
-        const scrollElements = document.querySelectorAll(
-            ".animate-in, .animate-in-left, .animate-in-right, .animate-in-scale, .scroll-animate, .scroll-animate-left, .scroll-animate-right, .scroll-animate-scale"
-        );
-
-        const observerOptions = {
-            root: null,
-            rootMargin: "0px 0px -50px 0px",
-            threshold: 0.1,
-        };
-
-        const observerCallback: IntersectionObserverCallback = (entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("visible", "in-view");
-                    entry.target.classList.remove("out-view");
-                }
-            });
-        };
-
-        const scrollObserver = new IntersectionObserver(
-            observerCallback,
-            observerOptions
-        );
-
-        scrollElements.forEach((el) => {
-            scrollObserver.observe(el);
-        });
-
-        return () => scrollObserver.disconnect();
-    }, [mounted]);
-
-    // Stat number animation
-    useEffect(() => {
-        if (!mounted) return;
-
-        const statNumbers = document.querySelectorAll(".stat-number");
-        const statObserver = new IntersectionObserver(
+        const els = document.querySelectorAll(".animate-in, .animate-in--scale");
+        const observer = new IntersectionObserver(
             (entries) => {
-                entries.forEach((entry) => {
-                    const target = entry.target as HTMLElement;
-                    if (entry.isIntersecting && !target.dataset.animated) {
-                        target.dataset.animated = "true";
-                        const text = target.textContent || "";
-                        const number = parseInt(text.replace(/[^0-9]/g, ""));
-                        const suffix = text.replace(/[0-9]/g, "");
-                        let current = 0;
-                        const duration = 1500;
-                        const increment = number / (duration / 16);
-
-                        const counter = setInterval(() => {
-                            current += increment;
-                            if (current >= number) {
-                                current = number;
-                                clearInterval(counter);
-                            }
-                            target.textContent = Math.round(current) + suffix;
-                        }, 16);
-                    }
+                entries.forEach((e) => {
+                    if (e.isIntersecting) e.target.classList.add("visible");
                 });
             },
-            { threshold: 0.5 }
+            { rootMargin: "0px 0px -40px 0px", threshold: 0.1 }
         );
-
-        statNumbers.forEach((el) => statObserver.observe(el));
-
-        return () => statObserver.disconnect();
+        els.forEach((el) => observer.observe(el));
+        return () => observer.disconnect();
     }, [mounted]);
 
-    // Nav scroll effect
-    useEffect(() => {
-        if (!mounted) return;
-
-        const handleScroll = () => {
-            setNavScrolled(window.pageYOffset > 50);
-        };
-
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [mounted]);
-
-    // Feature card click handler
-    const handleFeatureClick = useCallback((index: number) => {
-        setActiveFeature(index);
-
-        // Animate breakdown bars for GEO Score mockup
-        if (index === 1) {
-            setTimeout(() => {
-                const bars = document.querySelectorAll(".breakdown-fill");
-                bars.forEach((bar, i) => {
-                    const el = bar as HTMLElement;
-                    const width = el.getAttribute("data-width");
-                    setTimeout(() => {
-                        el.style.width = width + "%";
-                    }, i * 100);
-                });
-
-                // Animate score counter
-                const scoreEl = document.getElementById("scoreValue");
-                if (scoreEl) {
-                    let count = 0;
-                    const target = 73;
-                    const duration = 1000;
-                    const increment = target / (duration / 16);
-
-                    setTimeout(() => {
-                        const counter = setInterval(() => {
-                            count += increment;
-                            if (count >= target) {
-                                count = target;
-                                clearInterval(counter);
-                            }
-                            scoreEl.textContent = String(Math.round(count));
-                        }, 16);
-                    }, 500);
-                }
-            }, 300);
-        }
-    }, []);
-
-    // Code copy handler
-    const handleCodeCopy = useCallback(() => {
-        const codeText = `// Get your GEO Score via API
-const response = await fetch(
-  'https://api.georank.io/v1/score',
-  {
-    headers: { 'Authorization': \`Bearer \${API_KEY}\` }
-  })
-const { score, platforms, recommendations } =
-  await response.json()
-// Response:
-// { score: 73, platforms: { chatgpt: 47, claude: 62, ... } }`;
-
-        navigator.clipboard.writeText(codeText).then(() => {
-            const codeBlock = document.getElementById("codeBlock");
-            if (codeBlock) {
-                codeBlock.classList.add("copied");
-                setTimeout(() => {
-                    codeBlock.classList.remove("copied");
-                }, 2000);
-            }
-        });
-    }, []);
-
-    // Close mobile menu on link click
+    const toggleTheme = () => setTheme((p) => (p === "dark" ? "light" : "dark"));
     const closeMobileMenu = () => {
         setMobileMenuOpen(false);
         document.body.style.overflow = "";
     };
-
     const toggleMobileMenu = () => {
         setMobileMenuOpen((prev) => {
-            const newState = !prev;
-            document.body.style.overflow = newState ? "hidden" : "";
-            return newState;
+            const next = !prev;
+            document.body.style.overflow = next ? "hidden" : "";
+            return next;
         });
     };
 
-    // Prevent hydration mismatch
     if (!mounted) {
-        return (
-            <div
-                className="landing-page"
-                style={{ minHeight: "100vh", background: "#FAFAFA" }}
-            />
-        );
+        return <div className="plugin-page" style={{ minHeight: "100vh" }} />;
     }
 
     return (
-        <div className="landing-page">
-            {/* Navigation */}
-            <nav className={`landing-nav ${navScrolled ? "scrolled" : ""}`}>
-                <div className="landing-container">
-                    <Link href="/" className="landing-logo">
-                        <div className="logo-icon">G</div>
-                        <span className="logo-text">GeoRank</span>
-                    </Link>
-                    <div className="nav-links">
-                        <a href="#features" className="nav-link">
-                            Features
-                        </a>
-                        <a href="#pricing" className="nav-link">
-                            Pricing
-                        </a>
-                        <a href="#faq" className="nav-link">
-                            FAQ
-                        </a>
-                        <Link href="/playground" className="nav-link">
-                            Playground
-                        </Link>
+        <div className="plugin-page">
+            {/* ─── 1. Navigation ─── */}
+            <nav className={`plugin-nav ${navScrolled ? "scrolled" : ""}`}>
+                <div className="plugin-container plugin-nav__inner">
+                    <a href="#" className="plugin-nav__logo">
+                        <div className="plugin-nav__logo-icon">G</div>
+                        <span>GEO Optimizer</span>
+                    </a>
+                    <div className="plugin-nav__links">
+                        <a href="#features" className="plugin-nav__link">Features</a>
+                        <a href="#install" className="plugin-nav__link">Install</a>
+                        <a href="#examples" className="plugin-nav__link">Examples</a>
+                        <a href="#faq" className="plugin-nav__link">FAQ</a>
                     </div>
-                    <div className="nav-buttons">
-                        <button
-                            className="theme-toggle"
-                            onClick={toggleTheme}
-                            title={
-                                theme === "dark"
-                                    ? "Switch to Light Mode"
-                                    : "Switch to Dark Mode"
-                            }
-                        >
-                            {theme === "dark" ? "☀️" : "🌙"}
+                    <div className="plugin-nav__actions">
+                        <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+                            {theme === "dark" ? "\u2600" : "\u263E"}
                         </button>
-                        <a href="#" className="btn btn-secondary btn-small">
-                            Log in
-                        </a>
-                        <a href="#" className="btn btn-primary btn-small">
-                            Get Started
-                        </a>
+                        <a href="#install" className="btn btn--primary btn--small">Download Free</a>
                     </div>
                     <button
-                        className={`nav-toggle ${mobileMenuOpen ? "active" : ""}`}
+                        className={`plugin-nav__toggle ${mobileMenuOpen ? "active" : ""}`}
                         onClick={toggleMobileMenu}
-                        aria-label="Toggle navigation menu"
+                        aria-label="Toggle menu"
                     >
-                        <span></span>
-                        <span></span>
-                        <span></span>
+                        <span /><span /><span />
                     </button>
                 </div>
             </nav>
 
-            {/* Mobile Menu Overlay */}
-            <div
-                className={`nav-overlay ${mobileMenuOpen ? "active" : ""}`}
-                onClick={closeMobileMenu}
-            />
-
-            {/* Mobile Menu */}
+            <div className={`nav-overlay ${mobileMenuOpen ? "active" : ""}`} onClick={closeMobileMenu} />
             <div className={`nav-mobile ${mobileMenuOpen ? "active" : ""}`}>
-                <div className="nav-mobile-links">
-                    <a
-                        href="#features"
-                        className="nav-mobile-link"
-                        onClick={closeMobileMenu}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                            />
-                        </svg>
-                        Features
-                    </a>
-                    <a
-                        href="#pricing"
-                        className="nav-mobile-link"
-                        onClick={closeMobileMenu}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        Pricing
-                    </a>
-                    <a
-                        href="#faq"
-                        className="nav-mobile-link"
-                        onClick={closeMobileMenu}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        FAQ
-                    </a>
-                    <Link
-                        href="/playground"
-                        className="nav-mobile-link"
-                        onClick={closeMobileMenu}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                            />
-                        </svg>
-                        Playground
-                    </Link>
-                </div>
-                <div className="nav-mobile-buttons">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={toggleTheme}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "8px",
-                        }}
-                    >
-                        {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
-                    </button>
-                    <a href="#" className="btn btn-secondary">
-                        Log in
-                    </a>
-                    <a href="#" className="btn btn-primary">
-                        Get Started
-                    </a>
-                </div>
+                <a href="#features" className="nav-mobile__link" onClick={closeMobileMenu}>Features</a>
+                <a href="#install" className="nav-mobile__link" onClick={closeMobileMenu}>Install</a>
+                <a href="#examples" className="nav-mobile__link" onClick={closeMobileMenu}>Examples</a>
+                <a href="#faq" className="nav-mobile__link" onClick={closeMobileMenu}>FAQ</a>
+                <a href="#install" className="btn btn--primary" onClick={closeMobileMenu}>Download Free</a>
             </div>
 
-            {/* Hero Section */}
+            {/* ─── 2. Hero ─── */}
             <section className="hero">
-                <div className="landing-container">
-                    <div className="badge animate-in">
-                        <span className="badge-dot"></span>
-                        Now tracking 50M+ AI responses daily
+                <div className="plugin-container">
+                    <div className="hero__badge animate-in">
+                        <span className="hero__badge-dot" />
+                        Free &amp; Open Source WordPress Plugin
                     </div>
 
-                    <h1 className="hero-title animate-in delay-1">
-                        Get Recommended by AI.
+                    <h1 className="hero__title animate-in delay-1">
+                        AI Generative Search
                         <br />
-                        <span className="gradient-text">Not Buried by It.</span>
+                        <span className="hero__gradient">Optimizer</span>
                     </h1>
 
-                    <p className="hero-subtitle animate-in delay-2">
-                        The GEO API that tracks your brand across ChatGPT, Claude,
-                        Perplexity, and Google AI Overview—then optimizes your content to
-                        get cited more.
+                    <p className="hero__subtitle animate-in delay-2">
+                        Make your WordPress content visible to ChatGPT, Google SGE,
+                        Perplexity, DeepSeek, and every AI search engine — with structured
+                        data, entity optimization, and GEO scoring. No coding required.
                     </p>
 
-                    <div className="hero-buttons animate-in delay-3">
-                        <a href="#" className="btn btn-primary">
-                            Start Free Trial
+                    <div className="hero__buttons animate-in delay-3">
+                        <a href="#install" className="btn btn--primary btn--large">
+                            Download Free Plugin
                         </a>
-                        <Link href="/playground" className="btn btn-secondary">
-                            Try Playground
-                        </Link>
+                        <a href="#features" className="btn btn--secondary btn--large">
+                            See Features
+                        </a>
                     </div>
 
-                    <p className="trust-text animate-in delay-4">
-                        Trusted by 500+ innovative companies
+                    <p className="hero__meta animate-in delay-4">
+                        WordPress 6.0+ &middot; PHP 7.4+ &middot; <strong>v1.0.0</strong>
+                    </p>
+                </div>
+            </section>
+
+            {/* ─── 3. Harsh Reality ─── */}
+            <section className="plugin-section plugin-section--alt">
+                <div className="plugin-container text-center">
+                    <span className="section-eyebrow animate-in">The Problem</span>
+                    <h2 className="section-title animate-in delay-1">
+                        Traditional SEO Is No Longer Enough
+                    </h2>
+                    <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                        AI search engines are replacing link-based results with generated
+                        answers. If your content isn&apos;t structured for AI, you&apos;re invisible.
                     </p>
 
-                    <div className="logo-strip animate-in delay-4">
-                        <span>Vercel</span>
-                        <span>Linear</span>
-                        <span>Notion</span>
-                        <span>Figma</span>
-                        <span>Stripe</span>
-                        <span>Shopify</span>
-                    </div>
-                </div>
-            </section>
-
-            {/* Dashboard Preview */}
-            <section className="dashboard-preview">
-                <div className="landing-container">
-                    <div className="dashboard-card animate-in-scale">
-                        <div className="dashboard-header">
-                            <div className="dashboard-dot dashboard-dot-red"></div>
-                            <div className="dashboard-dot dashboard-dot-yellow"></div>
-                            <div className="dashboard-dot dashboard-dot-green"></div>
-                        </div>
-                        <div className="dashboard-content">
-                            <div className="geo-score-section animate-in-left delay-1">
-                                <p className="section-label">Your GEO Score</p>
-                                <div
-                                    className="geo-score-ring"
-                                    ref={scoreRingRef}
-                                >
-                                    <span
-                                        className="geo-score-value"
-                                        ref={scoreValueRef}
-                                    >
-                                        0
-                                    </span>
-                                </div>
-                                <p className="geo-score-change">+23 points this month</p>
+                    <div className="reality-grid">
+                        {[
+                            { number: "60%", text: "of Google searches now end without a click — AI answers the question directly." },
+                            { number: "0%", text: "of WordPress sites have content optimized for generative AI search engines." },
+                            { number: "4x", text: "higher citation rate for pages with structured data and entity markup." },
+                        ].map((stat, i) => (
+                            <div key={i} className="card animate-in" style={{ transitionDelay: `${0.1 + i * 0.1}s` }}>
+                                <div className="reality-card__number">{stat.number}</div>
+                                <p className="reality-card__text">{stat.text}</p>
                             </div>
-                            <div>
-                                <p className="section-label">AI Platform Coverage</p>
-                                <div className="platforms-grid">
-                                    <div className="platform-card">
-                                        <div className="platform-header">
-                                            <span className="platform-name">ChatGPT</span>
-                                            <span className="platform-score">47%</span>
-                                        </div>
-                                        <div className="platform-bar">
-                                            <div
-                                                className="platform-bar-fill"
-                                                style={{ width: "47%" }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <div className="platform-card">
-                                        <div className="platform-header">
-                                            <span className="platform-name">Claude</span>
-                                            <span className="platform-score">62%</span>
-                                        </div>
-                                        <div className="platform-bar">
-                                            <div
-                                                className="platform-bar-fill"
-                                                style={{ width: "62%" }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <div className="platform-card">
-                                        <div className="platform-header">
-                                            <span className="platform-name">Perplexity</span>
-                                            <span className="platform-score">38%</span>
-                                        </div>
-                                        <div className="platform-bar">
-                                            <div
-                                                className="platform-bar-fill"
-                                                style={{ width: "38%" }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <div className="platform-card">
-                                        <div className="platform-header">
-                                            <span className="platform-name">Gemini</span>
-                                            <span className="platform-score">55%</span>
-                                        </div>
-                                        <div className="platform-bar">
-                                            <div
-                                                className="platform-bar-fill"
-                                                style={{ width: "55%" }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ─── 4. Solution (Before / After) ─── */}
+            <section className="plugin-section">
+                <div className="plugin-container">
+                    <div className="text-center">
+                        <span className="section-eyebrow animate-in">The Solution</span>
+                        <h2 className="section-title animate-in delay-1">
+                            Make AI Understand Your Content
+                        </h2>
+                        <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                            GEO Optimizer transforms raw WordPress posts into AI-ready
+                            content with structured data, entity signals, and readability
+                            optimizations.
+                        </p>
+                    </div>
+
+                    <div className="solution-grid">
+                        <div className="card animate-in delay-1">
+                            <span className="solution-card__label solution-card__label--before">Before</span>
+                            <ul className="solution-list">
+                                <li><span className="icon icon--x">&times;</span>No structured data markup</li>
+                                <li><span className="icon icon--x">&times;</span>AI engines can&apos;t identify entities</li>
+                                <li><span className="icon icon--x">&times;</span>Content not quotable by AI</li>
+                                <li><span className="icon icon--x">&times;</span>Missing FAQ / HowTo schema</li>
+                                <li><span className="icon icon--x">&times;</span>No GEO readiness score</li>
+                            </ul>
+                        </div>
+                        <div className="card card--accent animate-in delay-2">
+                            <span className="solution-card__label solution-card__label--after">After GEO Optimizer</span>
+                            <ul className="solution-list">
+                                <li><span className="icon icon--check">&#10003;</span>Auto-generated JSON-LD (FAQ, HowTo, Article, Product)</li>
+                                <li><span className="icon icon--check">&#10003;</span>Entity optimization with sameAs links</li>
+                                <li><span className="icon icon--check">&#10003;</span>AI-quotable content scoring</li>
+                                <li><span className="icon icon--check">&#10003;</span>Schema validation against Schema.org</li>
+                                <li><span className="icon icon--check">&#10003;</span>Comprehensive GEO readiness score</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Stats Section */}
-            <section className="section section-white">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        AI is Answering Questions Your Customers Ask.
-                    </h2>
-                    <p className="section-subtitle scroll-animate">Are you the answer?</p>
-
-                    <div className="stats-grid stagger-children">
-                        <div className="card stat-card scroll-animate">
-                            <div className="stat-number">40%</div>
-                            <p className="stat-label">
-                                of searches now show AI-generated answers
-                            </p>
-                        </div>
-                        <div className="card stat-card scroll-animate">
-                            <div className="stat-number">65%</div>
-                            <p className="stat-label">
-                                of users trust AI recommendations over ads
-                            </p>
-                        </div>
-                        <div className="card stat-card scroll-animate">
-                            <div className="stat-number">&lt;1%</div>
-                            <p className="stat-label">
-                                of companies actively track their AI presence
-                            </p>
-                        </div>
+            {/* ─── 5. Key Features ─── */}
+            <section id="features" className="plugin-section plugin-section--alt">
+                <div className="plugin-container">
+                    <div className="text-center">
+                        <span className="section-eyebrow animate-in">Features</span>
+                        <h2 className="section-title animate-in delay-1">
+                            Everything You Need for AI Search
+                        </h2>
+                        <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                            Eight powerful features — zero configuration. Install, activate, optimize.
+                        </p>
                     </div>
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section id="features" className="section">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        Full-Stack Generative Engine Optimization
-                    </h2>
-                    <p
-                        className="section-subtitle scroll-animate"
-                        style={{ maxWidth: 600, marginLeft: "auto", marginRight: "auto" }}
-                    >
-                        Track, analyze, and optimize your brand&apos;s presence across every
-                        major AI platform.
-                    </p>
 
                     <div className="features-grid">
-                        <div className="features-list">
-                            {[
-                                {
-                                    icon: "📡",
-                                    title: "Universal AI Tracking",
-                                    desc: "Monitor mentions across ChatGPT, Claude, Gemini, Perplexity, and Google AI Overview in real-time.",
-                                },
-                                {
-                                    icon: "📊",
-                                    title: "GEO Score™",
-                                    desc: "Proprietary visibility score that benchmarks your AI presence against competitors.",
-                                },
-                                {
-                                    icon: "⚡",
-                                    title: "Optimization Engine",
-                                    desc: "AI-powered recommendations to increase your citation rate across all platforms.",
-                                },
-                                {
-                                    icon: "🔧",
-                                    title: "Developer-First API",
-                                    desc: "RESTful API with SDKs for Python, Node, and Ruby. Webhooks included.",
-                                },
-                            ].map((feature, index) => (
-                                <div
-                                    key={index}
-                                    className={`card feature-card ${activeFeature === index ? "active" : ""}`}
-                                    onClick={() => handleFeatureClick(index)}
-                                >
-                                    <div className="feature-content">
-                                        <span className="feature-icon">{feature.icon}</span>
-                                        <div>
-                                            <h3 className="feature-title">{feature.title}</h3>
-                                            <p className="feature-desc">{feature.desc}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div
-                            className="card feature-preview"
-                            style={{ padding: 0 }}
-                        >
-                            <div
-                                key={activeFeature}
-                                ref={featurePreviewRef}
-                                style={{ display: "flex", flexDirection: "column", height: "100%" }}
-                                dangerouslySetInnerHTML={{ __html: mockups[activeFeature] }}
-                                onClick={activeFeature === 3 ? handleCodeCopy : undefined}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* How It Works */}
-            <section className="section section-white">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">Live in 5 Minutes</h2>
-
-                    <div className="steps-grid stagger-children" style={{ marginTop: 60 }}>
                         {[
-                            {
-                                num: 1,
-                                title: "Connect Your Domain",
-                                desc: "Add your domain and we start tracking immediately",
-                            },
-                            {
-                                num: 2,
-                                title: "Get Your GEO Score",
-                                desc: "See exactly where you stand across all AI platforms",
-                            },
-                            {
-                                num: 3,
-                                title: "Follow the Playbook",
-                                desc: "Get prioritized recommendations to increase citations",
-                            },
-                            {
-                                num: 4,
-                                title: "Watch Citations Grow",
-                                desc: "Track improvements in real-time as you optimize",
-                            },
-                        ].map((step) => (
-                            <div key={step.num} className="step scroll-animate">
-                                <div className="step-number">{step.num}</div>
-                                <h3 className="step-title">{step.title}</h3>
-                                <p className="step-desc">{step.desc}</p>
+                            { icon: "\uD83D\uDCCB", title: "Schema Generation", desc: "Auto-detect content type and generate FAQ, HowTo, Article, Product, or LocalBusiness JSON-LD." },
+                            { icon: "\uD83C\uDFAF", title: "Entity Optimization", desc: "Extract entities, suggest sameAs links, and add Schema.org about properties for AI understanding." },
+                            { icon: "\uD83D\uDCCA", title: "Readability Score", desc: "Score content quotability, answer-readiness, structure, conciseness, and authority signals." },
+                            { icon: "\u2B50", title: "GEO Score", desc: "Comprehensive readiness score with letter grade, dimension breakdown, and actionable recommendations." },
+                            { icon: "\u2705", title: "Schema Validation", desc: "Validate existing JSON-LD against Schema.org specs — catch errors before search engines do." },
+                            { icon: "\uD83D\uDDA5\uFE0F", title: "No-Code Dashboard", desc: "WordPress admin panel shows scores and recommendations — no technical knowledge needed." },
+                            { icon: "\u26A1", title: "Lightweight", desc: "Under 50KB. No bloat, no slow queries, no external CSS/JS. Pure performance." },
+                            { icon: "\uD83E\uDD16", title: "Auto-Detect", desc: "Automatically identifies FAQs, HowTo steps, products, and articles — no manual tagging." },
+                        ].map((f, i) => (
+                            <div key={i} className="card feature-card animate-in" style={{ transitionDelay: `${0.05 + i * 0.06}s` }}>
+                                <div className="feature-card__icon">{f.icon}</div>
+                                <div className="feature-card__title">{f.title}</div>
+                                <p className="feature-card__desc">{f.desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Testimonials */}
-            <section className="section">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        Trusted by Growth Leaders
+            {/* ─── 6. Why Now ─── */}
+            <section className="plugin-section">
+                <div className="plugin-container text-center">
+                    <span className="section-eyebrow animate-in">Urgency</span>
+                    <h2 className="section-title animate-in delay-1">
+                        The AI Search Shift Is Happening Now
                     </h2>
-
-                    <div
-                        className="testimonials-grid stagger-children"
-                        style={{ marginTop: 60 }}
-                    >
-                        {[
-                            {
-                                metric: "+520%",
-                                label: "AI mentions",
-                                quote:
-                                    '"We went from 0 AI citations to being the #1 recommended tool in our category in just 60 days."',
-                                author: "Sarah Chen",
-                                role: "CEO, DataFlow",
-                            },
-                            {
-                                metric: "3x",
-                                label: "qualified leads",
-                                quote:
-                                    "\"GeoRank's API integrated into our workflow in under an hour. The insights are game-changing.\"",
-                                author: "Marcus Rodriguez",
-                                role: "Head of Growth, Stackwise",
-                            },
-                            {
-                                metric: "#1",
-                                label: "in category",
-                                quote:
-                                    '"Finally, an SEO tool that understands the AI-first future. This is essential for any modern brand."',
-                                author: "Emma Thompson",
-                                role: "VP Marketing, NexGen",
-                            },
-                        ].map((testimonial, index) => (
-                            <div key={index} className="card scroll-animate">
-                                <div className="testimonial-metric">
-                                    <div className="testimonial-metric-value">
-                                        {testimonial.metric}
-                                    </div>
-                                    <div className="testimonial-metric-label">
-                                        {testimonial.label}
-                                    </div>
-                                </div>
-                                <p className="testimonial-quote">{testimonial.quote}</p>
-                                <div className="testimonial-author">{testimonial.author}</div>
-                                <div className="testimonial-role">{testimonial.role}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Pricing */}
-            <section id="pricing" className="section section-white">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        Simple Pricing. Powerful Results.
-                    </h2>
-                    <p className="section-subtitle scroll-animate">
-                        14-day free trial on all plans. No credit card required.
+                    <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                        Every major search provider is deploying generative AI answers.
+                        Sites that adapt first will capture the most citations.
                     </p>
 
-                    <div className="pricing-grid stagger-children">
+                    <div className="urgency-grid">
                         {[
-                            {
-                                name: "Starter",
-                                price: "$49",
-                                features: [
-                                    "1 domain",
-                                    "1,000 tracks/month",
-                                    "Basic API access",
-                                    "Email support",
-                                ],
-                                popular: false,
-                            },
-                            {
-                                name: "Growth",
-                                price: "$149",
-                                features: [
-                                    "5 domains",
-                                    "10,000 tracks/month",
-                                    "Full API access",
-                                    "Priority support",
-                                ],
-                                popular: true,
-                            },
-                            {
-                                name: "Scale",
-                                price: "$399",
-                                features: [
-                                    "20 domains",
-                                    "50,000 tracks/month",
-                                    "Full API access",
-                                    "Slack support",
-                                ],
-                                popular: false,
-                            },
-                        ].map((plan) => (
-                            <div
-                                key={plan.name}
-                                className={`card pricing-card scroll-animate-scale ${plan.popular ? "popular" : ""}`}
-                            >
-                                {plan.popular && (
-                                    <span className="pricing-badge">Most Popular</span>
-                                )}
-                                <h3 className="pricing-name">{plan.name}</h3>
-                                <div className="pricing-price">
-                                    <span className="pricing-amount">{plan.price}</span>
-                                    <span className="pricing-period">/month</span>
-                                </div>
-                                <ul className="pricing-features">
-                                    {plan.features.map((feature, i) => (
-                                        <li key={i} className="pricing-feature">
-                                            <span className="pricing-check">✓</span>
-                                            <span className="pricing-feature-text">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <a
-                                    href="#"
-                                    className={`btn ${plan.popular ? "btn-primary" : "btn-secondary"}`}
-                                    style={{ width: "100%" }}
-                                >
-                                    Start Free Trial
-                                </a>
+                            { icon: "\uD83C\uDF0D", title: "Google SGE", desc: "Search Generative Experience is rolling out globally. AI answers appear above organic results." },
+                            { icon: "\uD83D\uDCAC", title: "ChatGPT Search", desc: "OpenAI now indexes the web directly. Content with schema markup gets cited 4x more often." },
+                            { icon: "\uD83D\uDD0D", title: "Perplexity & DeepSeek", desc: "AI-native search engines are growing 300% year-over-year. Early movers dominate citations." },
+                        ].map((item, i) => (
+                            <div key={i} className="card urgency-card animate-in" style={{ transitionDelay: `${0.1 + i * 0.1}s` }}>
+                                <div className="urgency-card__icon">{item.icon}</div>
+                                <div className="urgency-card__title">{item.title}</div>
+                                <p className="urgency-card__desc">{item.desc}</p>
                             </div>
                         ))}
                     </div>
+                </div>
+            </section>
 
-                    <p className="pricing-cta">
-                        Need more?{" "}
-                        <a href="#">Contact us for Enterprise pricing →</a>
+            {/* ─── 7. Perfect For ─── */}
+            <section className="plugin-section plugin-section--alt">
+                <div className="plugin-container text-center">
+                    <span className="section-eyebrow animate-in">Who It&apos;s For</span>
+                    <h2 className="section-title animate-in delay-1">Built for WordPress Creators</h2>
+
+                    <div className="audience-grid">
+                        {[
+                            { icon: "\u270D\uFE0F", title: "Bloggers & Publishers", desc: "Auto-generate FAQ and Article schema from your posts. Get cited as a source in AI answers without writing a single line of code." },
+                            { icon: "\uD83D\uDED2", title: "E-Commerce Stores", desc: "Product and LocalBusiness schema for WooCommerce. Help AI shopping assistants recommend your products." },
+                            { icon: "\uD83D\uDCC8", title: "SEO Professionals", desc: "GEO scoring, entity analysis, and readability metrics give you the data to optimize for the next era of search." },
+                        ].map((a, i) => (
+                            <div key={i} className="card audience-card animate-in" style={{ transitionDelay: `${0.1 + i * 0.1}s` }}>
+                                <div className="audience-card__icon">{a.icon}</div>
+                                <div className="audience-card__title">{a.title}</div>
+                                <p className="audience-card__desc">{a.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ─── 8. Install Instructions ─── */}
+            <section id="install" className="plugin-section">
+                <div className="plugin-container text-center">
+                    <span className="section-eyebrow animate-in">Get Started</span>
+                    <h2 className="section-title animate-in delay-1">Install in 3 Steps</h2>
+                    <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                        No configuration. No API keys. Just install, activate, and your content is optimized.
                     </p>
-                </div>
-            </section>
 
-            {/* FAQ */}
-            <section id="faq" className="section">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        Frequently Asked Questions
-                    </h2>
-
-                    <div
-                        className="faq-container stagger-children"
-                        style={{ marginTop: 60 }}
-                    >
+                    <div className="install-grid">
                         {[
-                            {
-                                question: "What AI platforms do you track?",
-                                answer:
-                                    "We track ChatGPT, Claude, Gemini, Perplexity, Google AI Overview, Bing Copilot, and more. We add new models monthly as the landscape evolves.",
-                            },
-                            {
-                                question: "How quickly will I see results?",
-                                answer:
-                                    "You'll see your GEO Score immediately after connecting your domain. Most customers see measurable citation improvements within 30-60 days of following our optimization recommendations.",
-                            },
-                            {
-                                question: "Do I need technical knowledge to use this?",
-                                answer:
-                                    "Not at all! Our dashboard is designed for marketers and non-technical users. The API is available for teams that want deeper integration, but it's completely optional.",
-                            },
-                            {
-                                question: "How is this different from regular SEO tools?",
-                                answer:
-                                    "Traditional SEO tools track Google rankings. GeoRank tracks how AI models cite and recommend your brand—a completely different (and rapidly growing) traffic source that most companies are ignoring.",
-                            },
-                        ].map((faq, index) => (
-                            <div key={index} className="faq-item scroll-animate">
-                                <div className="faq-question">{faq.question}</div>
-                                <div className="faq-answer">{faq.answer}</div>
+                            { num: 1, title: "Download", desc: "Download the free plugin ZIP from this page or search \"GEO Optimizer\" in the WordPress plugin directory." },
+                            { num: 2, title: "Activate", desc: "Upload to wp-content/plugins or install directly from your WordPress admin. Click Activate." },
+                            { num: 3, title: "Optimize", desc: "Visit any post or page — GEO Optimizer automatically analyzes content and injects optimized schema markup." },
+                        ].map((step, i) => (
+                            <div key={i} className="card install-step animate-in" style={{ transitionDelay: `${0.1 + i * 0.1}s` }}>
+                                <div className="install-step__number">{step.num}</div>
+                                <div className="install-step__title">{step.title}</div>
+                                <p className="install-step__desc">{step.desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Final CTA */}
-            <section className="section section-dark final-cta">
-                <div className="landing-container">
-                    <h2 className="section-title scroll-animate">
-                        AI is Changing Search Forever.
+            {/* ─── 9. Example Cases ─── */}
+            <section id="examples" className="plugin-section plugin-section--alt">
+                <div className="plugin-container">
+                    <div className="text-center">
+                        <span className="section-eyebrow animate-in">Examples</span>
+                        <h2 className="section-title animate-in delay-1">See It In Action</h2>
+                        <p className="section-subtitle section-subtitle--center animate-in delay-2">
+                            Real before/after examples of content optimized for AI search.
+                        </p>
+                    </div>
+
+                    <div className="examples-grid">
+                        {/* Recipe HowTo */}
+                        <div className="card example-card animate-in delay-1">
+                            <div className="example-card__header">
+                                <span className="example-card__badge">HowTo</span>
+                                <span className="example-card__type">Recipe Blog Post</span>
+                            </div>
+                            <div className="example-card__body">
+                                <div className="example-card__before">
+                                    <div className="example-card__label">Before</div>
+                                    <p className="example-card__text">
+                                        Plain text recipe with no structured data. AI search engines
+                                        skip it for competitor recipes that have schema markup.
+                                    </p>
+                                </div>
+                                <div className="example-card__arrow">&darr;</div>
+                                <div className="example-card__after">
+                                    <div className="example-card__label">After</div>
+                                    <div className="example-card__code">{`{
+  "@type": "HowTo",
+  "name": "Classic Banana Bread",
+  "step": [
+    { "@type": "HowToStep",
+      "text": "Preheat oven to 350F" },
+    { "@type": "HowToStep",
+      "text": "Mash 3 ripe bananas" }
+  ]
+}`}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SaaS FAQ */}
+                        <div className="card example-card animate-in delay-2">
+                            <div className="example-card__header">
+                                <span className="example-card__badge">FAQPage</span>
+                                <span className="example-card__type">SaaS Pricing Page</span>
+                            </div>
+                            <div className="example-card__body">
+                                <div className="example-card__before">
+                                    <div className="example-card__label">Before</div>
+                                    <p className="example-card__text">
+                                        FAQ section with questions and answers but no schema.
+                                        ChatGPT never cites the page when users ask about pricing.
+                                    </p>
+                                </div>
+                                <div className="example-card__arrow">&darr;</div>
+                                <div className="example-card__after">
+                                    <div className="example-card__label">After</div>
+                                    <div className="example-card__code">{`{
+  "@type": "FAQPage",
+  "mainEntity": [{
+    "@type": "Question",
+    "name": "Is there a free plan?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes, free forever..."
+    }
+  }]
+}`}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Local Business Entity */}
+                        <div className="card example-card animate-in delay-3">
+                            <div className="example-card__header">
+                                <span className="example-card__badge">LocalBusiness</span>
+                                <span className="example-card__type">Local Service Page</span>
+                            </div>
+                            <div className="example-card__body">
+                                <div className="example-card__before">
+                                    <div className="example-card__label">Before</div>
+                                    <p className="example-card__text">
+                                        About page mentions the business name and address but AI
+                                        search can&apos;t connect it to the Knowledge Graph entity.
+                                    </p>
+                                </div>
+                                <div className="example-card__arrow">&darr;</div>
+                                <div className="example-card__after">
+                                    <div className="example-card__label">After</div>
+                                    <div className="example-card__code">{`{
+  "@type": "LocalBusiness",
+  "name": "Joe's Plumbing",
+  "sameAs": [
+    "https://yelp.com/biz/..."
+  ],
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Austin"
+  }
+}`}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ─── 10. FAQ ─── */}
+            <section id="faq" className="plugin-section">
+                <div className="plugin-container">
+                    <div className="text-center">
+                        <span className="section-eyebrow animate-in">FAQ</span>
+                        <h2 className="section-title animate-in delay-1">
+                            Frequently Asked Questions
+                        </h2>
+                    </div>
+
+                    <div className="faq-list">
+                        {[
+                            {
+                                q: "Is GEO Optimizer really free?",
+                                a: "Yes, 100% free and open source. There are no premium tiers, no upsells, and no usage limits. The full feature set is available to everyone.",
+                            },
+                            {
+                                q: "Which WordPress versions are supported?",
+                                a: "GEO Optimizer supports WordPress 6.0 and above with PHP 7.4+. It works with the Classic Editor, Block Editor (Gutenberg), and all major page builders.",
+                            },
+                            {
+                                q: "What schema types does it generate?",
+                                a: "Currently supports FAQPage, HowTo, Article, Product, and LocalBusiness. The plugin auto-detects content type and generates the appropriate schema. More types coming soon.",
+                            },
+                            {
+                                q: "Does it slow down my site?",
+                                a: "No. The plugin is under 50KB with zero frontend JavaScript and no external CSS. Schema markup is injected server-side as a lightweight JSON-LD script tag.",
+                            },
+                            {
+                                q: "Will this work with WooCommerce?",
+                                a: "Yes. GEO Optimizer detects WooCommerce product pages and generates Product schema with price, availability, and review data automatically.",
+                            },
+                            {
+                                q: "How is this different from Yoast or Rank Math?",
+                                a: "Traditional SEO plugins focus on Google's link-based algorithm. GEO Optimizer is purpose-built for generative AI search — it optimizes for quotability, entity recognition, and answer-readiness that AI models use to select sources.",
+                            },
+                        ].map((faq, i) => (
+                            <div key={i} className="faq-item animate-in" style={{ transitionDelay: `${0.05 + i * 0.05}s` }}>
+                                <div className="faq-item__question">{faq.q}</div>
+                                <p className="faq-item__answer">{faq.a}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ─── 11. Final CTA ─── */}
+            <section className="plugin-section plugin-section--dark final-cta">
+                <div className="plugin-container">
+                    <h2 className="final-cta__title animate-in">
+                        Stop Being Invisible to AI Search
                     </h2>
-                    <p className="section-subtitle scroll-animate">Start winning today.</p>
-                    <a href="#" className="btn btn-primary btn-large scroll-animate-scale">
-                        Get Your Free GEO Score →
+                    <p className="final-cta__subtitle animate-in delay-1">
+                        Install GEO Optimizer today and make your WordPress content the
+                        source AI engines cite first.
+                    </p>
+                    <a href="#install" className="btn btn--white btn--large animate-in delay-2">
+                        Download Free Plugin
                     </a>
-                    <p className="final-cta-note scroll-animate">
-                        Takes 30 seconds. No credit card required.
-                    </p>
                 </div>
             </section>
 
-            {/* Footer */}
-            <footer className="landing-footer">
-                <div className="landing-container">
-                    <div className="footer-grid">
-                        <div className="footer-brand">
-                            <div className="footer-logo">
-                                <div className="footer-logo-icon">G</div>
-                                <span className="footer-logo-text">GeoRank</span>
-                            </div>
-                            <p className="footer-tagline">
-                                The API that makes AI recommend your brand. Track, optimize,
-                                and dominate AI search results.
-                            </p>
-                        </div>
-                        <div>
-                            <h4 className="footer-heading">Product</h4>
-                            <ul className="footer-links">
-                                <li>
-                                    <a href="#">Features</a>
-                                </li>
-                                <li>
-                                    <a href="#">Pricing</a>
-                                </li>
-                                <li>
-                                    <a href="#">API Docs</a>
-                                </li>
-                                <li>
-                                    <a href="#">Changelog</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="footer-heading">Solutions</h4>
-                            <ul className="footer-links">
-                                <li>
-                                    <a href="#">For SaaS</a>
-                                </li>
-                                <li>
-                                    <a href="#">For eCommerce</a>
-                                </li>
-                                <li>
-                                    <a href="#">For Agencies</a>
-                                </li>
-                                <li>
-                                    <a href="#">Enterprise</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="footer-heading">Resources</h4>
-                            <ul className="footer-links">
-                                <li>
-                                    <a href="#">Blog</a>
-                                </li>
-                                <li>
-                                    <a href="#">Case Studies</a>
-                                </li>
-                                <li>
-                                    <a href="#">Free Tools</a>
-                                </li>
-                                <li>
-                                    <a href="#">GEO Guide</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="footer-heading">Company</h4>
-                            <ul className="footer-links">
-                                <li>
-                                    <a href="#">About</a>
-                                </li>
-                                <li>
-                                    <a href="#">Careers</a>
-                                </li>
-                                <li>
-                                    <a href="#">Contact</a>
-                                </li>
-                                <li>
-                                    <a href="#">Twitter</a>
-                                </li>
-                            </ul>
+            {/* ─── 12. Footer ─── */}
+            <footer className="plugin-footer">
+                <div className="plugin-container">
+                    <div className="plugin-footer__inner">
+                        <a href="#" className="plugin-footer__brand">
+                            <div className="plugin-footer__brand-icon">G</div>
+                            GEO Optimizer
+                        </a>
+                        <div className="plugin-footer__links">
+                            <a href="#features" className="plugin-footer__link">Features</a>
+                            <a href="#install" className="plugin-footer__link">Install</a>
+                            <a href="#faq" className="plugin-footer__link">FAQ</a>
+                            <a href="https://github.com/vonroflo/geo_wpplugin" className="plugin-footer__link" target="_blank" rel="noopener noreferrer">GitHub</a>
                         </div>
                     </div>
-                    <div className="footer-bottom">
-                        <span>© 2026 GeoRank. All rights reserved.</span>
-                        <div className="footer-bottom-links">
-                            <a href="#">Privacy</a>
-                            <a href="#">Terms</a>
-                            <a href="#">Security</a>
-                        </div>
+                    <div className="plugin-footer__bottom">
+                        <span className="plugin-footer__copy">
+                            &copy; {new Date().getFullYear()} GEO Optimizer. Free &amp; open source.
+                        </span>
+                        <span className="plugin-footer__copy">v1.0.0</span>
                     </div>
                 </div>
             </footer>

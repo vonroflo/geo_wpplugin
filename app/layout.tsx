@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-    title: "GeoRank | The GEO API for AI Search Optimization",
+    title: "AI Generative Search Optimizer | Free WordPress Plugin",
     description:
-        "The GEO API that tracks your brand across ChatGPT, Claude, Perplexity, and Google AI Overview—then optimizes your content to get cited more.",
+        "Free WordPress plugin that optimizes your content for AI search engines like Google SGE, ChatGPT, Perplexity, and DeepSeek with structured data, entity optimization, and GEO scoring.",
 };
 
 export default function RootLayout({

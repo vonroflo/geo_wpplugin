@@ -2,7 +2,6 @@
 const nextConfig = {
     experimental: {
         serverComponentsExternalPackages: [
-            "@google-cloud/tasks",
             "firebase-admin",
         ],
     },
