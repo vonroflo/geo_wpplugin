@@ -702,11 +702,11 @@ class GEO_Admin {
         $author   = get_the_author_meta( 'display_name', $post->post_author );
 
         $score_result = $this->api->score(
-            $content, $title, $headings, array(),
+            $content, $title, $url, $headings, array(),
             array(
-                'author'     => $author,
-                'date'       => $post->post_date,
-                'word_count' => str_word_count( $content ),
+                'author'         => $author,
+                'published_date' => $post->post_date,
+                'word_count'     => str_word_count( $content ),
             )
         );
 

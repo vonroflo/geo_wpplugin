@@ -106,10 +106,11 @@ class GEO_API_Client {
      * @param array    $meta             Optional metadata (author, date, word_count).
      * @return array|WP_Error
      */
-    public function score( string $content, string $title, array $headings = array(), array $existing_schemas = array(), array $meta = array() ) {
+    public function score( string $content, string $title, string $url, array $headings = array(), array $existing_schemas = array(), array $meta = array() ) {
         $body = array(
             'content'  => $content,
             'title'    => $title,
+            'url'      => $url,
             'headings' => $headings,
         );
         if ( ! empty( $existing_schemas ) ) {
